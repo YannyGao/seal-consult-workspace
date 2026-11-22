@@ -12,7 +12,7 @@
 (function(){
 "use strict";
 const B=window.SEAL_BRIDGE;if(!B){console.warn("New consult: SEAL_BRIDGE missing");return}
-const {C,PT,av,ME,TEAM,CALLBACK,NOW,fmt}=B;
+const {C,PT,av,ME,TEAM,CALLBACK,NOW,fmt}=B;const FILE_BASE=B.FILE_BASE||{};
 const esc=s=>String(s==null?"":s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 const RM=matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -36,6 +36,12 @@ const I={
   x:SV('<path d="M4 4l8 8M12 4l-8 8"/>'),
   warn:SV('<path d="M8 2l6.5 11.5h-13z"/><path d="M8 6.5v3.2"/><circle cx="8" cy="11.6" r=".5"/>'),
   info:SV('<circle cx="8" cy="8" r="6.2"/><path d="M8 7.2v4"/><circle cx="8" cy="4.9" r=".5"/>'),
+  fEcg:SV('<rect x="1.5" y="3" width="13" height="10" rx="2"/><path d="M3.5 8.5h2l1-2.5 1.6 5 1.2-3.5.7 1h2.5"/>'),
+  fLab:SV('<path d="M6 2h4M6.8 2v4.2L3.6 12a1.6 1.6 0 0 0 1.4 2.3h6a1.6 1.6 0 0 0 1.4-2.3L9.2 6.2V2"/><path d="M5 10h6"/>'),
+  fDoc:SV('<path d="M4 1.75h5.5L12.5 4.75v9.5H4z"/><path d="M9.5 1.75v3h3M6 8h4.5M6 10.5h4.5"/>'),
+  fHeart:SV('<path d="M8 13.2S2.5 10 2.5 6.3A2.8 2.8 0 0 1 8 5a2.8 2.8 0 0 1 5.5 1.3C13.5 10 8 13.2 8 13.2z"/>'),
+  fPill:SV('<rect x="2" y="5.5" width="12" height="5" rx="2.5"/><path d="M8 5.5v5"/>'),
+  upload:SV('<path d="M8 11V3M4.5 6.2L8 2.7l3.5 3.5M3 13.3h10"/>'),
   /* thinking icons — each one moves a little while its step runs */
   person:SV('<circle cx="8" cy="5.5" r="2.5"/><path d="M3.5 13.5c.6-2.4 2.4-3.6 4.5-3.6s3.9 1.2 4.5 3.6"/>'),
   doc:SV('<rect x="3.5" y="2" width="9" height="12" rx="1.8"/><path class="nc-l1" d="M6 6h4"/><path class="nc-l2" d="M6 8.5h4"/><path class="nc-l3" d="M6 11h2.5"/>'),
@@ -118,6 +124,21 @@ const WHY={A:"AF with rapid ventricular rates (105–130) despite metoprolol",B:
 const MISS={B:{testing:"the outside echo (El Camino, 2024) isn’t in Epic"},C:{cardio:"no cardiac history or cardiologist on file"},F:{cardio:"no cardiac history or cardiologist on file",testing:"no prior cardiac testing found"},G:{testing:"the PAMF Holter isn’t in Epic"},H:{cardio:"no cardiologist on file"},J:{cardio:"no cardiac history or cardiologist on file"}};
 Object.keys(CHART).forEach(k=>{CHART[k].why=WHY[k];CHART[k].miss=MISS[k]||{}});
 const unitOf=room=>UNIT[room]||"7 East";
+/* raw chart records the consultant receives as files (synthetic) */
+const tm=(t,d)=>{const m=/Today (\d\d:\d\d)/.exec(t||"");return m?`Today ${fmt(m[1])}`:d};
+const ecgTrace=()=>{let d="M0 40";for(let i=0;i<6;i++){const x=i*70;d+=` L${x+10} 40 L${x+16} 36 L${x+22} 40 L${x+30} 40 L${x+33} 46 L${x+37} 8 L${x+41} 52 L${x+45} 40 L${x+54} 40 L${x+60} 33 L${x+66} 40`}return `<svg class="nc-doc-trace" viewBox="0 0 420 60" preserveAspectRatio="none" aria-hidden="true"><path d="${d}"/></svg>`};
+function recordsFor(k){
+  const c=CHART[k],p=PT[k],r=[];
+  r.push({id:"ecg",icon:"fEcg",title:"12-lead ECG",src:"Epic · Cardiology",date:tm(c.ecg,"Today"),body:`${ecgTrace()}<dl class="nc-doc-dl"><dt>Interpretation</dt><dd>${esc(c.ecg.replace(/^Today \d\d:\d\d · /,""))}</dd><dt>Acquired</dt><dd>${esc(tm(c.ecg,"Today"))} · 25 mm/s · 10 mm/mV</dd></dl>`});
+  const labs=c.labs.split(" · ").map(x=>{const m=/^(.*?)\s([\d<>].*)$/.exec(x);return m?[m[1],m[2]]:[x,""]});
+  r.push({id:"labs",icon:"fLab",title:"Cardiac labs · trend",src:"Epic · Laboratory",date:"Today",body:`<table class="nc-doc-tb"><thead><tr><th>Test</th><th>Result</th></tr></thead><tbody>${labs.map(([a,b])=>`<tr><td>${esc(a)}</td><td>${esc(b)}</td></tr>`).join("")}</tbody></table>`});
+  r.push({id:"tele",icon:"fHeart",title:"Telemetry summary · 24 h",src:"Epic · Monitoring",date:"Today",body:`<p>${esc(c.tele)}.</p>`});
+  if(c.miss.testing)r.push({id:"test",gap:true,title:"Recent cardiac testing",why:c.miss.testing,upTitle:/El Camino/.test(c.miss.testing)?"Outside TTE report · El Camino (2024)":/PAMF/.test(c.miss.testing)?"Holter report · PAMF (2024)":"Cardiac testing report"});
+  else r.push({id:"test",icon:"fDoc",testing:true,title:c.testing.split(":")[0].replace(/\s*·.*$/,""),src:/outside|El Camino|PAMF/i.test(c.testing)?"Outside record":"Epic · Cardiology",date:(/\(([^)]*)\)/.exec(c.testing)||[,""])[1].split(", ").pop()||"",body:`<p>${esc(c.testing)}.</p>`});
+  r.push({id:"hp",icon:"fDoc",title:"Admission H&P",src:"Epic · Hospital Medicine",date:"This admission",body:`<dl class="nc-doc-dl"><dt>Patient</dt><dd>${esc(p.name)} · ${c.age} ${c.sex} · ${esc(p.room)}</dd><dt>Admitted for</dt><dd>${esc(c.adm)}</dd><dt>History</dt><dd>${esc(c.hx)}</dd><dt>Cardiologist</dt><dd>${esc(c.miss.cardio?"None on file":c.cardio)}</dd></dl>`});
+  r.push({id:"meds",icon:"fPill",title:"Medication list",src:"Epic · Pharmacy",date:"Today",body:`<ul class="nc-doc-ul">${c.meds.split(/,\s*/).map(m=>`<li>${esc(m)}</li>`).join("")}</ul>`});
+  return r.map(x=>({...x,on:!x.gap}));
+}
 
 /* ---------- routes (guideline pagers) and synthetic on-call roster ---------- */
 const ROUTES={
@@ -551,6 +572,7 @@ function paint3(){
         <div class="nct-f nc-s4"><label>Updated ECG</label><div class="nct-radios"><label><input type="radio" name="ncecg" value="yes">Available</label><label><input type="radio" name="ncecg" value="no">Not available</label></div></div>
         ${fld("cardio","Prior cardiac history and cardiologist",1,"",2,"From the chart")}
         ${fld("tele","Telemetry issue",0,"nc-s3")}${fld("labs","Pertinent cardiac labs and trend",1,"nc-s3")}</div></section>
+      <section class="nct-sec" style="animation-delay:360ms"><div class="nct-sh"><span class="nc-num">5</span>Chart records<span class="nct-sh-sub">Sent to the consultant as files</span></div><ul class="nct-recs" id="ncRecs"></ul></section>
     </div></div>
     <aside class="nct-aside" aria-label="Specialty checklist"><div class="nct-cl"><div class="nct-cl-h"><h3>Specialty checklist</h3><span class="nct-cl-n" id="ncCkN">0/6</span></div><div class="nct-cl-bar"><i id="ncCkBar"></i></div><p>Updates as the request fills in and as you edit.</p><ul class="nct-ck" id="ncCk"></ul></div></aside></div>`;
   bindChip();act3(true);summary3();
@@ -562,6 +584,7 @@ function paint3(){
     if(restore)pane.querySelectorAll(".nct-sec").forEach(x=>x.style.animation="none");
     const rad=restore?restore.radios:{ncurg:NC.unstable?"Unstable":NC.urg,ncpamf:f.pamf?"yes":"no",ncecg:f.ecgOk?"yes":"no"};
     Object.entries(rad).forEach(([n,v])=>{const r=pane.querySelector(`input[name=${n}][value="${v}"]`);if(r)r.checked=true});
+    if(!restore||!NC.recs||NC.recsPt!==NC.pt){NC.recs=recordsFor(NC.pt);NC.recsPt=NC.pt}renderRecs();
     urgNote();summary3();NC.genQ=restore?restore.genQ:f.question;pane.querySelectorAll(".nc-lock input").forEach(i=>{i.readOnly=true;i.title="From the patient’s chart"});
     const need={};if(c.miss.cardio)need.cardio=["Add prior cardiac history and the cardiologist, or “None known”.",`Not in the chart — ${c.miss.cardio}.`];if(c.miss.testing)need.results=["Add the recent cardiac testing result here.",`Not in the chart — ${c.miss.testing}.`];
     for(const k of ["name","mrn","room","team","req","cb","at","need","summary","question","history","results","cardio","tele","labs"]){
@@ -578,6 +601,29 @@ function paint3(){
     validate();summary3();
   })();
 }
+function renderRecs(){
+  const ul=root&&root.querySelector("#ncRecs");if(!ul)return;
+  ul.innerHTML=NC.recs.map((r,i)=>r.gap?`<li class="nct-rec nct-rec-gap"><span class="nct-rec-ic nct-rec-ic-gap">!</span><div class="nct-rec-t"><b>${esc(r.title)}</b><span>Not in Epic — ${esc(r.why)}. Upload it if you have it.</span></div><button type="button" class="ncp-btn nc-ghost nc-sm" data-ncup="${i}">${I.upload}Upload file</button></li>`:
+    `<li class="nct-rec${r.on?"":" nct-rec-off"}"><label class="nct-rec-cb"><input type="checkbox" data-ncrec="${i}"${r.on?" checked":""} aria-label="Include ${esc(r.title)}"></label><span class="nct-rec-ic">${I[r.icon]}</span><div class="nct-rec-t"><b>${esc(r.title)}</b><span>${esc(r.src)}${r.date?" · "+esc(r.date):""}</span></div><button type="button" class="nc-link" data-ncprev="${i}">Preview</button></li>`).join("");
+  ul.onchange=e=>{const cb=e.target.closest("[data-ncrec]");if(!cb)return;const r=NC.recs[+cb.dataset.ncrec];r.on=cb.checked;cb.closest(".nct-rec").classList.toggle("nct-rec-off",!r.on);summary3()};
+  ul.onclick=async e=>{
+    const pv=e.target.closest("[data-ncprev]");if(pv){openDoc(NC.recs[+pv.dataset.ncprev]);return}
+    const up=e.target.closest("[data-ncup]");if(!up)return;
+    const i=+up.dataset.ncup,r=NC.recs[i],li=up.closest(".nct-rec");
+    li.innerHTML=`<span class="nct-rec-ic">${I.upload}</span><div class="nct-rec-t"><b>${esc(r.upTitle)}.pdf</b><span class="nct-up"><i></i></span></div>`;
+    await sleep(T(1300));if(!root)return;
+    NC.recs[i]={id:r.id,icon:"fDoc",testing:true,title:r.upTitle,src:"Uploaded by you",date:"Today",up:true,on:true,body:`<p class="nc-doc-note">Uploaded file · ${esc(r.upTitle)}.pdf</p><p>Outside report attached by ${esc(ME)}. Original document is included as a PDF.</p>`};
+    renderRecs();summary3();
+  };
+}
+function openDoc(r){
+  const m=document.createElement("div");m.className="nc-modal";m.setAttribute("role","dialog");m.setAttribute("aria-modal","true");m.setAttribute("aria-label",r.title);
+  m.innerHTML=`<div class="nc-modal-bd"></div><div class="nc-sheet nc-doc"><div class="nc-sheet-h"><span class="nct-rec-ic">${I[r.icon]}</span><div><h2>${esc(r.title)}</h2><p>${esc(PT[NC.pt].name)} · ${esc(PT[NC.pt].mrn)} · ${esc(r.src)}${r.date?" · "+esc(r.date):""}</p></div><button type="button" class="nc-x" data-ncclose aria-label="Close">${I.x}</button></div><div class="nc-doc-body">${r.body}</div></div>`;
+  root.appendChild(m);const x=()=>{m.classList.add("nc-out");setTimeout(()=>m.remove(),T(220))};
+  m.addEventListener("click",e=>{if(e.target.closest("[data-ncclose]")||e.target.classList.contains("nc-modal-bd"))x()});
+  m.addEventListener("keydown",e=>{if(e.key==="Escape"){e.stopPropagation();x()}});
+  setTimeout(()=>m.querySelector(".nc-x").focus({preventScroll:true}),T(60));
+}
 function saveDraft(){
   if(!root||!root.querySelector("#f-question")||root.querySelector("#gen"))return;
   const vals={};["name","mrn","room","team","req","cb","at","need","summary","question","history","results","cardio","tele","labs"].forEach(k=>vals[k]=root.querySelector("#f-"+k).value);
@@ -591,9 +637,10 @@ function urgNote(){const v=root.querySelector("input[name=ncurg]:checked")?.valu
 const val=k=>(root.querySelector("#f-"+k)?.value||"").trim();
 function validate(){let ok=true;root.querySelectorAll("[data-ncreq]").forEach(el=>{const miss=!el.value.trim(),w=el.closest(".nct-f");w.classList.toggle("nc-miss",miss&&!w.classList.contains("nc-need"));if(miss)ok=false});act3(false,ok);return ok}
 const TESTING_RE=/testing|\btte\b|\btee\b|\becho|holter|\bmri\b|stress|\bcath|angiogra|no prior/i;
-const CK_TARGET=["_core","cardio","labs","results","question","_route"];
+const CK_TARGET=["_core","cardio","labs","_test","question","_route"];
 function jumpTo(k){
   if(k==="_core")k=["summary","question","cb"].find(x=>!val(x))||"question";
+  if(k==="_test"){const g=root.querySelector(".nct-rec-gap");if(g){g.scrollIntoView({block:"center",behavior:RM?"auto":"smooth"});g.classList.remove("nc-flash");void g.offsetWidth;g.classList.add("nc-flash");return}k="results"}
   const w=k==="_route"?root.querySelector(".nct-to"):root.querySelector("#f-"+k)?.closest(".nct-f");if(!w)return;
   w.scrollIntoView({block:"center",behavior:RM?"auto":"smooth"});
   w.classList.remove("nc-flash");void w.offsetWidth;w.classList.add("nc-flash");
@@ -603,13 +650,13 @@ function summary3(){
   const ck=root.querySelector("#ncCk");if(!ck)return;
   const cw=root.querySelector('.nct-f[data-nck="cardio"]'),rw=root.querySelector('.nct-f[data-nck="results"]');
   if(cw&&cw.classList.contains("nc-need")&&val("cardio").length>3)cw.classList.remove("nc-need");
-  if(rw&&rw.classList.contains("nc-need")&&TESTING_RE.test(val("results")))rw.classList.remove("nc-need");
+  if(rw&&rw.classList.contains("nc-need")&&(TESTING_RE.test(val("results"))||(NC.recs&&NC.recs.some(r=>r.on&&r.up))))rw.classList.remove("nc-need");
   const R=ROUTES[NC.route],c=CHART[NC.pt],p=PT[NC.pt],q=val("question"),abn=/rising|elevat|inversion|st elev|pause|tachy|wide/i.test(c.labs+" "+c.ecg+" "+c.tele);
   const items=[
     ["Patient name, MRN, brief history, focused question, and callback are included.",val("name")&&val("mrn")&&val("summary")&&q.length>15&&val("cb")],
     ["Prior cardiac history and the patient’s cardiologist are identified.",val("cardio").length>8],
     ["Updated ECG and pertinent cardiac laboratory trends are available or pending.",!!root.querySelector("input[name=ncecg]:checked")&&val("labs")],
-    ["Recent Stanford or outside cardiac testing is summarized.",TESTING_RE.test(val("results"))],
+    ["Recent Stanford or outside cardiac testing is summarized.",TESTING_RE.test(val("results"))||!!(NC.recs&&NC.recs.some(r=>r.on&&r.testing))],
     ["Troponin, ECG, or telemetry abnormalities are linked to a clinical question.",!abn||/\?/.test(q)],
     ["The correct general, admission, or subspecialty cardiology route is selected.",!!NC.route&&(!c.pamf||NC.route==="pamf"||NC.route==="adm")]
   ];
@@ -630,21 +677,18 @@ function openReview(){
   const reqName=(val("req").split(" · ")[0]||ME).trim();
   const uLabel=urg==="Unstable"?"Unstable · emergency response activated":urg;
   const m=document.createElement("div");m.className="nc-modal";m.setAttribute("role","dialog");m.setAttribute("aria-modal","true");m.setAttribute("aria-labelledby","ncRvT");
-  m.innerHTML=`<div class="nc-modal-bd"></div><div class="nc-sheet">
-    <div class="nc-sheet-h"><div><h2 id="ncRvT">Review page</h2><p>Check the message before it goes out.</p></div><button type="button" class="nc-x" data-ncclose aria-label="Close">${I.x}</button></div>
-    <div class="nc-sheet-b">
-      <div class="nc-to"><span class="nc-to-k">To</span>${av(NC.clin,36)}<div class="nc-to-who"><b>${esc(NC.clin)}</b><span>${esc(role?role+" · ":"")}${esc(R.name)}</span></div><span class="nc-to-pg">${esc(pagerText(R))}</span></div>
-      <article class="nc-msg2" aria-label="Page message">
-        <header class="nc-msg2-top"><span class="nc-msg2-eb">New consult · ${esc(R.name)}</span><span class="nc-urg nc-urg-${urg.toLowerCase()}">${esc(uLabel)}</span></header>
-        <section class="nc-msg2-q"><span class="nc-msg2-k">Question</span><p>${esc(val("question"))}</p></section>
-        <div class="nc-msg2-grid">
-          <section><span class="nc-msg2-k">Patient</span><b>${esc(p.name)}</b><span class="nc-msg2-mono">MRN ${esc(p.mrn)} · Rm ${esc(p.room)}</span></section>
-          <section><span class="nc-msg2-k">Call back</span><b class="nc-msg2-mono">${esc(val("cb"))}</b><span>${esc(reqName)}</span></section>
-        </div>
-        <section class="nc-msg2-sum"><span class="nc-msg2-k">Summary</span><p>${esc(val("summary"))}</p></section>
-      </article>
+  const att=(NC.recs||[]).filter(r=>r.on&&!r.gap);
+  const pageText=[`New consult — ${R.name}`,`${p.name} · MRN ${p.mrn} · Rm ${p.room}`,"",`Q: ${val("question")}`,"",val("summary"),"",`Urgency: ${uLabel}`,`Callback ${val("cb")} · ${reqName}`]
+    .concat(att.length?[`Attached: ${att.length} chart record${att.length===1?"":"s"} (${att.map(r=>r.title).join(", ")})`]:[]).join("\n");
+  m.innerHTML=`<div class="nc-modal-bd"></div><div class="nc-sheet nc-rv">
+    <div class="nc-sheet-h"><div><h2 id="ncRvT">Review page</h2><p>This is what ${esc(NC.clin)} will receive.</p></div><button type="button" class="nc-x" data-ncclose aria-label="Close">${I.x}</button></div>
+    <div class="nc-phone">
+      <div class="nc-phone-to">${av(NC.clin,34)}<div><b>${esc(NC.clin)}</b><span>${esc(role?role+" · ":"")}${esc(R.name)}</span></div><span class="nc-to-pg">${esc(pagerText(R))}</span></div>
+      <div class="nc-thread"><div class="nc-stamp">Today ${fmtNow()}</div>
+        <div class="nc-bubble nc-bubble-text">${esc(pageText)}</div>
+      </div>
     </div>
-    <div class="nc-sheet-f"><span class="nc-sheet-note">Sent as a page · the fellow calls back to acknowledge</span><button type="button" class="ncp-btn nc-ghost" data-ncclose>Edit</button><button type="button" class="ncp-btn" data-ncsend>Send page</button></div></div>`;
+    <div class="nc-sheet-f"><button type="button" class="ncp-btn nc-ghost" data-ncclose>Edit</button><button type="button" class="ncp-btn" data-ncsend>Send page</button></div></div>`;
   root.appendChild(m);
   let sent=null;
   const prev=document.activeElement;
@@ -672,9 +716,11 @@ function pushRecord(){
   const clause=t=>{const x=t.split(/[.?!]/)[0].trim();return x.length>64?x.slice(0,61).trim()+"…":x};
   const reason=q&&q!==NC.genQ?clause(q):(NC.reason||(NC.topic?TOPIC_LABEL[NC.topic]:clause(q)));
   const requester=(val("req").split(" · ")[0]||ME).trim(),callback=val("cb")||CALLBACK;
+  const files=(NC.recs||[]).filter(r=>r.on&&!r.gap).map((r,i)=>({key:`${id}-f${i}`,title:r.title,kind:"pdf",size:"PDF · "+(80+i*23)+" KB"}));
+  FILE_BASE[id]=files;
   C.push({id,pt:NC.pt,svc:"Cardiology",who:NC.clin,whoRole:R.name,urg:urg==="Unstable"?"Emergent":urg,emergent:urg==="Unstable",reason,ordered:time,question:q,requester,callback,
     status:"paged",time,note:`Page sent to ${R.name}${isPager(R.pager)?" (pager "+R.pager+")":""} for ${NC.clin}. No acknowledgement yet.`,
-    events:[[time,"Order created","SEAL consult request · chart imported","ok"],[time,"Paged",`${R.name}${isPager(R.pager)?" · pager "+R.pager:""} · ${NC.clin}`,"blue"]]});
+    events:[[time,"Order created",`SEAL consult request · ${files.length} chart record${files.length===1?"":"s"} attached`,"ok"],[time,"Paged",`${R.name}${isPager(R.pager)?" · pager "+R.pager:""} · ${NC.clin}`,"blue"]]});
   return {id,time,name:PT[NC.pt].name,route:R.name};
 }
 function finishSend(info){
