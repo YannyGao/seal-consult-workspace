@@ -30,6 +30,10 @@ const I={
   sparkIn:SV('<path d="M8 1.5l1.6 4.4 4.4 1.6-4.4 1.6L8 13.5l-1.6-4.4L2 7.5l4.4-1.6z" fill="currentColor" stroke="none"/>',13),
   up:SV('<path d="M8 13V3.5M3.8 7.5L8 3.3l4.2 4.2"/>'),
   list:SV('<path d="M5.5 4h8M5.5 8h8M5.5 12h8"/><circle cx="2.5" cy="4" r=".6"/><circle cx="2.5" cy="8" r=".6"/><circle cx="2.5" cy="12" r=".6"/>',14),
+  clock:SV('<circle cx="8" cy="8" r="5.8"/><path d="M8 5v3.2l2 1.3"/>',12),
+  moon:SV('<path d="M12.5 9.8A5 5 0 0 1 6.2 3.5a5 5 0 1 0 6.3 6.3z"/>',12),
+  chevR:SV('<path d="M6 4l4 4-4 4"/>',14),
+  x:SV('<path d="M4 4l8 8M12 4l-8 8"/>'),
   warn:SV('<path d="M8 2l6.5 11.5h-13z"/><path d="M8 6.5v3.2"/><circle cx="8" cy="11.6" r=".5"/>'),
   info:SV('<circle cx="8" cy="8" r="6.2"/><path d="M8 7.2v4"/><circle cx="8" cy="4.9" r=".5"/>'),
   /* thinking icons — each one moves a little while its step runs */
@@ -181,7 +185,7 @@ function routeQuestion(q){for(const [re,r,t,reason] of RULES) if(re.test(q)) ret
 /* ---------- state ---------- */
 const NC={sess:0};
 let root=null,importRun=0,ocRun=0;
-function reset(){NC.sess++;importRun++;ocRun++;Object.assign(NC,{step:1,maxStep:1,pt:null,imported:false,mode:"pick",route:null,topic:null,clin:null,question:"",reason:"",urg:"Routine",chat:[],busy:false,awaiting:false,askRouted:false,unstable:false,ocKey:null})}
+function reset(){NC.sess++;importRun++;ocRun++;Object.assign(NC,{step:1,maxStep:1,pt:null,imported:false,mode:"pick",route:null,topic:null,clin:null,question:"",reason:"",urg:"Routine",chat:[],busy:false,awaiting:false,askRouted:false,askResult:null,unstable:false,ocKey:null})}
 const isPager=p=>/^\d+$/.test(p);
 const pagerText=r=>isPager(r.pager)?"Pager "+r.pager:r.pager;
 const initials=n=>n.replace(/,.*$/,"").split(/\s+/).map(w=>w[0]).join("").slice(0,2);
@@ -263,9 +267,9 @@ function close(){
 function go(n){NC.step=n;NC.maxStep=Math.max(NC.maxStep,n);paint();root.scrollTo({top:0,behavior:RM?"auto":"smooth"})}
 function paint(){
   const steps=["Patient","Specialty & consultant","Review request"];
-  root.innerHTML=`<div class="ncp-wrap">
+  root.innerHTML=`<div class="ncp-wrap${NC.step===3?" nc-wide":""}">
     <button type="button" class="ncp-back">${I.back}My consults</button>
-    <h1 class="ncp-title">New consult</h1>
+    <h1 class="ncp-title" id="ncTitle">${titleText()}</h1>
     <ol class="ncp-steps">${steps.map((s,i)=>{const n=i+1,cur=n===NC.step,done=!cur&&n<=NC.maxStep;return (i?'<li class="ncp-sep" aria-hidden="true"></li>':"")+`<li><button type="button" class="ncp-step${done?" done":""}" data-ncstep="${n}"${cur?' aria-current="step"':""}${done?"":" disabled"}><span class="nc-num">${done?I.ck:n}</span>${s}</button></li>`}).join("")}</ol>
     <div class="ncp-pane" id="ncpPane"></div>
     <div class="ncp-actions" id="ncpAct"></div></div>`;
@@ -273,6 +277,8 @@ function paint(){
   root.querySelectorAll("[data-ncstep]").forEach(b=>b.onclick=()=>{if(!b.disabled)go(+b.dataset.ncstep)});
   [paint1,paint2,paint3][NC.step-1]();
 }
+const titleText=()=>NC.pt?`Consult for ${esc(PT[NC.pt].name)}`:"New consult";
+function setTitle(){const h=root&&root.querySelector("#ncTitle");if(!h)return;h.classList.remove("nc-swap");void h.offsetWidth;h.innerHTML=titleText();h.classList.add("nc-swap")}
 function actions(hint,btns){root.querySelector("#ncpAct").innerHTML=`<span class="ncp-hint">${hint||""}</span>${btns}`}
 function lockAhead(){NC.maxStep=NC.step;root.querySelectorAll("[data-ncstep]").forEach(b=>{const n=+b.dataset.ncstep;if(n>NC.step){b.disabled=true;b.classList.remove("done");b.querySelector(".nc-num").textContent=n}})}
 const ptChip=()=>{const p=PT[NC.pt];return `<div class="nc-ptchip"><span class="nc-ini">${initials(p.name)}</span><b>${esc(p.name)}</b><span class="nc-ptid">${esc(p.room)} · ${esc(p.mrn)}</span><button type="button" data-ncgo="1">Change</button></div>`};
@@ -295,7 +301,7 @@ function paint1(){
   const dd=Combo({placeholder:"Search or select a patient",labelledby:"ptLbl",value:NC.pt,expanded:items.map(i=>i.id),
     groups:[{label:"My patients",items}],
     find:id=>({id,label:PT[id].name,meta:`${PT[id].room} · ${PT[id].mrn}`}),
-    onSelect:p=>{if(NC.pt===p.id)return;Object.assign(NC,{pt:p.id,imported:false,route:null,topic:null,clin:null,chat:[],askRouted:false,question:"",reason:"",ocKey:null});NC.sess++;lockAhead();runImport()}});
+    onSelect:p=>{if(NC.pt===p.id)return;Object.assign(NC,{pt:p.id,imported:false,route:null,topic:null,clin:null,chat:[],askRouted:false,askResult:null,question:"",reason:"",ocKey:null});NC.sess++;lockAhead();setTitle();runImport()}});
   pane.querySelector("#ptDD").appendChild(dd);
   if(NC.pt&&NC.imported)importStatic();else if(NC.pt)runImport();
   act1();
@@ -310,7 +316,7 @@ function importShell(done){
   return box.firstElementChild;
 }
 const rowHTML=(s,c)=>`<div class="nci-row"><div><span class="nci-ck">${I.ck}</span><span class="nci-k">${s.k}</span><span class="nci-v">${s.v(c)}</span></div></div>`;
-const flagHTML=c=>c.flag?`<div class="nci-flag nc-${c.flag.t}">${I.warn}${esc(c.flag.x)}</div>`:"";
+const flagHTML=c=>c.flag?`<div class="nci-flag nc-${c.flag.t}"><span class="nc-alert-ic">${I.warn}</span><span>${esc(c.flag.x)}</span></div>`:"";
 function importStatic(){
   const card=importShell(true),c=CHART[NC.pt];
   card.querySelector(".nci-list").innerHTML=IMPORT.map(s=>rowHTML(s,c)).join("");
@@ -344,17 +350,15 @@ async function runImport(){
 function paint2(){
   const pane=root.querySelector("#ncpPane"),c=CHART[NC.pt],p=PT[NC.pt];
   pane.innerHTML=`${ptChip()}
-    ${c.pamf?`<div class="nc-alert nc-warn">${I.warn}<div><b>${esc(p.name)} is a PAMF patient</b>Guidelines say to page PAMF Cardiology directly.<div class="nc-alert-act"><button type="button" class="ncp-btn nc-sm" id="toPamf">Route to PAMF Cardiology</button></div></div></div>`:""}
-    <div class="ncm" role="group" aria-label="How to choose the specialty"><span class="ncm-thumb" aria-hidden="true"></span><button type="button" data-ncmode="pick" aria-pressed="${NC.mode==="pick"}">${I.list}Pick a specialty</button><button type="button" data-ncmode="ask" aria-pressed="${NC.mode==="ask"}">${I.sparkIn}Ask a question</button></div>
-    <div id="modeBody"></div><div id="oncall"></div>`;
+    <div class="ncm" role="group" aria-label="How to choose the specialty"><span class="ncm-thumb" aria-hidden="true"></span><button type="button" data-ncmode="pick" aria-pressed="${NC.mode==="pick"}">${I.list}Pick a specialty</button><button type="button" data-ncmode="ask" aria-pressed="${NC.mode==="ask"}">${I.sparkIn}Help me choose</button></div>
+    <div id="modeBody"></div><div id="askRes"></div><div id="pamfNote"></div><div id="oncall"></div>`;
   bindChip();
   const thumb=pane.querySelector(".ncm-thumb"),place=()=>{thumb.style.transform=NC.mode==="ask"?"translateX(100%)":"none"};place();
   pane.querySelectorAll("[data-ncmode]").forEach(b=>b.onclick=()=>{
     if(NC.mode===b.dataset.ncmode)return;
     if(NC.busy){NC.sess++;NC.chat=[];NC.busy=false;NC.awaiting=false;NC.question=""}
-    NC.mode=b.dataset.ncmode;pane.querySelectorAll("[data-ncmode]").forEach(x=>x.setAttribute("aria-pressed",x===b));place();paintMode();paintOncall();act2()});
-  const tp=pane.querySelector("#toPamf");if(tp)tp.onclick=()=>{NC.route="pamf";NC.clin=null;NC.ocKey=null;NC.mode="pick";paint2();if(!NC.topic)setTimeout(()=>{const t=root&&root.querySelector("#tpDD .ncd-in");t&&t.focus()},T(150))};
-  paintMode();paintOncall();act2();
+    NC.mode=b.dataset.ncmode;pane.querySelectorAll("[data-ncmode]").forEach(x=>x.setAttribute("aria-pressed",x===b));place();paintMode();paintAskResult();paintOncall();act2()});
+  paintMode();paintAskResult();paintOncall();act2();
 }
 function paintMode(){NC.mode==="pick"?paintPick():paintAsk()}
 function paintPick(){
@@ -426,7 +430,7 @@ async function ask(q){
   if(dead())return;const st=await choose(t1,[["stable","Stable"],["unstable","Unstable / worsening"]]);
   if(st==="unstable"){
     NC.unstable=true;NC.urg="Urgent";
-    if(dead())return;const t=await aiSay([{html:`<div class="nc-alert nc-bad" style="margin:6px 0 0">${I.warn}<div><b>Call a Rapid Response (RRT) or code now</b>The cardiology fellow can’t act as an emergent responder. Activate the local emergency response first — you can still send the consult.</div></div>`},{text:"Continue with the consult request?"}]);
+    if(dead())return;const t=await aiSay([{html:`<div class="nc-alert nc-bad" style="margin:6px 0 0"><span class="nc-alert-ic">${I.warn}</span><div><b>Call a Rapid Response (RRT) or code now</b>The cardiology fellow can’t act as an emergent responder. Activate the local emergency response first — you can still send the consult.</div></div>`},{text:"Continue with the consult request?"}]);
     if(dead())return;const g=await choose(t,[["go","Yes, continue"],["stop","Stop here"]]);
     if(g==="stop"){await aiSay([{text:"Okay. Come back from **My consults** when the patient is stabilized."}]);NC.busy=false;return}
   } else {NC.unstable=false;NC.urg="Routine"}
@@ -445,9 +449,20 @@ async function ask(q){
   const R=ROUTES[route],why=[r.reason+" → "+(route==="pamf"?"PAMF patients go to PAMF Cardiology":route==="adm"?"admissions use the admission pager, not the consult pager":R.desc)];
   if(c.flag&&!(c.flag.t==="bad"&&/\?/.test(NC.question)))why.push(c.flag.x);
   if(NC.unstable)why.push("Marked urgent — RRT advised");
-  const card=`<div class="ncc-route" data-ncroute="${route}"><div class="ncc-route-r">Cardiovascular Medicine <i>›</i> ${esc(R.name)}</div><div class="ncc-route-pg">${esc(isPager(R.pager)?"Pager "+R.pager:R.desc)}</div><ul>${why.map(w=>`<li>${esc(w)}</li>`).join("")}</ul><button type="button" class="ncp-btn nc-sm" data-ncuse>Show who’s on call</button> <button type="button" class="ncp-btn nc-sm nc-ghost" data-ncalt>Pick a different service</button></div>`;
-  if(dead())return;await aiSay([{text:"Here’s where this should go:"},{html:card}],[["Checking the consult guidelines","scope"],["Choosing the service","route"]]);
-  if(dead())return;NC.busy=false;bindRouteCard(root.querySelector("#nccLog"));
+  if(dead())return;await aiSay([{text:`Routed to **${R.name}**. The suggestion and who’s on call are below the chat.`}],[["Checking the consult guidelines","scope"],["Choosing the service","route"]]);
+  if(dead())return;NC.busy=false;NC.askResult={route,why};if(NC.route!==route){NC.route=route;NC.clin=null}NC.askRouted=true;
+  paintAskResult();paintOncall();act2();
+  setTimeout(()=>{const r=root&&root.querySelector("#askRes");r&&r.scrollIntoView({behavior:RM?"auto":"smooth",block:"start"})},T(120));
+}
+function paintAskResult(){
+  const box=root&&root.querySelector("#askRes");if(!box)return;
+  if(NC.mode!=="ask"||!NC.askResult){box.innerHTML="";return}
+  const {route,why}=NC.askResult,R=ROUTES[route];
+  box.innerHTML=`<div class="nc-route"><div class="nc-route-top"><span class="nc-tile nc-sm">${I.sparkSm}</span><span class="nc-route-eyebrow">Suggested route</span><button type="button" class="nc-link" data-ncalt>Choose a different service</button></div>
+    <div class="nc-route-path"><span>Cardiovascular Medicine</span>${I.chevR}<b>${esc(R.name)}</b></div>
+    <div class="nc-route-pg">${esc(isPager(R.pager)?"Pager "+R.pager+" · "+R.desc:R.desc)}</div>
+    <ul class="nc-route-why">${why.map(w=>`<li><span class="nc-route-ck">${I.ck}</span>${esc(w)}</li>`).join("")}</ul></div>`;
+  box.querySelector("[data-ncalt]").onclick=()=>{NC.mode="pick";paint2()};
 }
 function bindRouteCard(log){
   log.querySelectorAll(".ncc-route").forEach(card=>{
@@ -458,7 +473,16 @@ function bindRouteCard(log){
 }
 /* on-call list: only once both the service and the topic (or a routed question) are known */
 const ocReady=()=>!!NC.route&&(NC.mode==="pick"?!!NC.topic:NC.askRouted);
+function paintPamf(){
+  const box=root&&root.querySelector("#pamfNote");if(!box)return;const c=CHART[NC.pt],p=PT[NC.pt];
+  const show=c.pamf&&NC.mode==="pick"&&NC.route&&NC.route!=="pamf"&&NC.route!=="adm";
+  if(!show){box.innerHTML="";return}
+  if(box.firstChild)return;
+  box.innerHTML=`<div class="nc-alert nc-warn" style="margin:16px 0 0"><span class="nc-alert-ic">${I.warn}</span><div><b>${esc(p.name)} is a PAMF patient</b>Guidelines route cardiology consults for PAMF patients to PAMF Cardiology.<div class="nc-alert-act"><button type="button" class="ncp-btn nc-sm" data-nctopamf>Switch to PAMF Cardiology</button></div></div></div>`;
+  box.querySelector("[data-nctopamf]").onclick=()=>{NC.route="pamf";NC.clin=null;NC.ocKey=null;box.innerHTML="";paintPick();paintOncall();act2()};
+}
 async function paintOncall(){
+  paintPamf();
   const box=root&&root.querySelector("#oncall");if(!box)return;
   if(!ocReady()){box.innerHTML="";NC.ocKey=null;return}
   const R=ROUTES[NC.route],list=ONCALL[NC.route],key=NC.route,run=++ocRun;
@@ -471,7 +495,7 @@ async function paintOncall(){
     th.set("Matching availability right now…","think");await sleep(600);if(run!==ocRun||!root)return;
   }
   box.innerHTML=`<div class="nco"><div class="nco-h"><b>On call now · ${esc(R.name)}</b><span>${esc(pagerText(R))} · ${fmtNow()}</span></div>
-    <div class="nco-list" role="radiogroup" aria-label="Clinician to page">${list.map((x,i)=>`<button type="button" class="nco-it${fresh?"":" nc-settled"}" role="radio" aria-checked="${NC.clin===x[0]}" data-ncc="${esc(x[0])}" style="animation-delay:${i*80}ms"><span class="nco-rad"></span>${av(x[0],36)}<span class="nco-who"><b>${esc(x[0])}</b><span>${esc(x[1])}</span></span><span class="nco-st nc-s-${x[2]}">${esc(x[3])}</span></button>`).join("")}</div>
+    <div class="nco-list" role="radiogroup" aria-label="Clinician to page">${list.map((x,i)=>`<button type="button" class="nco-it${fresh?"":" nc-settled"}" role="radio" aria-checked="${NC.clin===x[0]}" data-ncc="${esc(x[0])}" style="animation-delay:${i*80}ms"><span class="nco-rad"></span>${av(x[0],36)}<span class="nco-who"><b>${esc(x[0])}</b><span>${esc(x[1])}</span></span><span class="nco-st nc-s-${x[2]}">${x[2]==="av"?'<i class="nco-live"></i>':x[2]==="busy"?I.clock:I.moon}${esc(x[3])}</span></button>`).join("")}</div>
     ${NC.route==="echo"?`<p class="nco-note">During the day, message the Lead Sonographer on Voalte. Between 5 PM and 7 AM the on-call fellow (24300) triages stat echo requests.</p>`:""}
     <p class="nco-note" id="ncoBusy"${list.find(x=>x[0]===NC.clin&&x[2]!=="av")?"":" hidden"}>This clinician isn’t immediately available — the page still goes to the ${esc(R.name)} pager.</p></div>`;
   box.querySelectorAll(".nco-it").forEach(b=>b.onclick=()=>{NC.clin=b.dataset.ncc;box.querySelectorAll(".nco-it").forEach(x=>{x.setAttribute("aria-checked",x===b);x.classList.add("nc-settled")});
@@ -498,12 +522,12 @@ function paint3(){
   const pane=root.querySelector("#ncpPane"),f=buildFields(),R=ROUTES[NC.route];
   const src=t=>`<span class="nct-src">${I.sparkSm}${t}</span>`;
   const fld=(k,label,req,cls,ta,s)=>`<div class="nct-f ${cls||""}" data-nck="${k}"><label for="f-${k}">${label}${req?" <i>*</i>":""}</label>${ta?`<textarea id="f-${k}" rows="${ta}"${req?" data-ncreq":""}></textarea>`:`<input id="f-${k}" type="text"${req?" data-ncreq":""}>`}${s?src(s):""}</div>`;
-  pane.innerHTML=`${ptChip()}
+  pane.innerHTML=`<div class="nct-grid"><div class="nct-main">${ptChip()}
     <div class="nct-to">${av(NC.clin,40)}<div class="nct-to-who"><small>Page goes to</small><b>${esc(NC.clin)}</b><span>${esc(R.name)}</span></div><div class="nct-to-pg">${esc(pagerText(R))}</div></div>
     <div class="nct-gen" id="gen"><span class="nc-tile nc-live">${I.spark}</span></div>
     <div id="secs" hidden>
       <section class="nct-sec" style="animation-delay:0ms"><div class="nct-sh"><span class="nc-num">1</span>Patient and requester</div><div class="nct-body">
-        ${fld("name","Patient name",1,"nc-s3")}${fld("mrn","MRN",1,"nc-s2")}${fld("room","Room",1,"nc-s1")}
+        ${fld("name","Patient name",1,"nc-s3 nc-lock")}${fld("mrn","MRN",1,"nc-s2 nc-lock")}${fld("room","Room",1,"nc-s1 nc-lock")}
         ${fld("team","Primary team",1,"nc-s3")}${fld("req","Requester name and role",1,"nc-s3")}
         ${fld("cb","Callback number",1,"nc-s2")}${fld("at","Requested date and time",1,"nc-s2")}${fld("need","Needed by",0,"nc-s2")}</div></section>
       <section class="nct-sec" style="animation-delay:90ms"><div class="nct-sh"><span class="nc-num">2</span>Clinical request</div><div class="nct-body">
@@ -519,10 +543,9 @@ function paint3(){
         <div class="nct-f nc-s4"><label>Updated ECG</label><div class="nct-radios"><label><input type="radio" name="ncecg" value="yes">Available</label><label><input type="radio" name="ncecg" value="no">Not available</label></div></div>
         ${fld("cardio","Prior cardiac history and cardiologist",1,"",2,"From the chart")}
         ${fld("tele","Telemetry issue",0,"nc-s3")}${fld("labs","Pertinent cardiac labs and trend",1,"nc-s3")}</div></section>
-      <details class="nct-preview"><summary>Preview the page text ${I.chev}</summary><div class="nct-msg" id="ncMsg"></div></details>
-      <div class="nct-cl"><h3>Specialty checklist</h3><p>Checked automatically from the request above.</p><ul class="nct-ck" id="ncCk"></ul></div>
-    </div>`;
-  bindChip();act3(true);
+    </div></div>
+    <aside class="nct-aside" aria-label="Specialty checklist"><div class="nct-cl"><div class="nct-cl-h"><h3>Specialty checklist</h3><span class="nct-cl-n" id="ncCkN">0/6</span></div><div class="nct-cl-bar"><i id="ncCkBar"></i></div><p>Updates as the request fills in and as you edit.</p><ul class="nct-ck" id="ncCk"></ul></div></aside></div>`;
+  bindChip();act3(true);summary3();
   const th=Thinker();pane.querySelector("#gen").appendChild(th);
   const run=NC.sess;
   (async()=>{
@@ -531,11 +554,11 @@ function paint3(){
     pane.querySelector(`input[name=ncurg][value="${NC.unstable?"Unstable":NC.urg}"]`).checked=true;
     pane.querySelector(`input[name=ncpamf][value="${f.pamf?"yes":"no"}"]`).checked=true;
     pane.querySelector(`input[name=ncecg][value="${f.ecgOk?"yes":"no"}"]`).checked=true;
-    urgNote();summary3();
+    urgNote();summary3();NC.genQ=f.question;pane.querySelectorAll(".nc-lock input").forEach(i=>{i.readOnly=true;i.title="From the patient’s chart"});
     for(const k of ["name","mrn","room","team","req","cb","at","need","summary","question","history","results","cardio","tele","labs"]){
       const el=pane.querySelector("#f-"+k);if(!el||!root||NC.step!==3)return;const v=f[k]||"",w=el.closest(".nct-f");w.classList.add("nc-fill");
       if(RM||v.length<4)el.value=v;else{const st=Math.max(2,Math.ceil(v.length/22));for(let i=0;i<=v.length;i+=st){el.value=v.slice(0,i);await sleep(14)}el.value=v}
-      setTimeout(()=>w.classList.remove("nc-fill"),T(900));
+      setTimeout(()=>w.classList.remove("nc-fill"),T(900));summary3();
     }
     pane.querySelectorAll("input,textarea").forEach(el=>el.addEventListener("input",()=>{validate();summary3()}));
     pane.querySelectorAll("input[type=radio]").forEach(el=>el.addEventListener("change",()=>{urgNote();summary3()}));
@@ -543,13 +566,13 @@ function paint3(){
   })();
 }
 function urgNote(){const v=root.querySelector("input[name=ncurg]:checked")?.value,n=root.querySelector("#urgNote");if(!n)return;
-  n.innerHTML=v==="Unstable"?`<div class="nc-alert nc-bad" style="margin:12px 0 0">${I.warn}<div><b>Call an RRT or code first</b>The cardiology fellow cannot act as an emergent responder. Send the consult after the emergency response is activated.</div></div>`:
-  v==="Urgent"?`<div class="nc-alert nc-info" style="margin:12px 0 0">${I.info}<div>Urgent pages are fine any time. Re-page only for an acute change or if it’s been more than 1 hour.</div></div>`:
-  `<div class="nc-alert nc-info" style="margin:12px 0 0">${I.info}<div>For low-acuity or late non-urgent consults, the fellow may give preliminary recommendations and see the patient tomorrow. Avoid non-urgent pages 10 PM–7 AM and Tuesdays 7:30–9 AM.</div></div>`}
+  n.innerHTML=v==="Unstable"?`<div class="nc-alert nc-bad" style="margin:12px 0 0"><span class="nc-alert-ic">${I.warn}</span><div><b>Call an RRT or code first</b>The cardiology fellow cannot act as an emergent responder. Send the consult after the emergency response is activated.</div></div>`:
+  v==="Urgent"?`<div class="nc-alert nc-info" style="margin:12px 0 0"><span class="nc-alert-ic">${I.info}</span><div>Urgent pages are fine any time. Re-page only for an acute change or if it’s been more than 1 hour.</div></div>`:
+  `<div class="nc-alert nc-info" style="margin:12px 0 0"><span class="nc-alert-ic">${I.info}</span><div>For low-acuity or late non-urgent consults, the fellow may give preliminary recommendations and see the patient tomorrow. Avoid non-urgent pages 10 PM–7 AM and Tuesdays 7:30–9 AM.</div></div>`}
 const val=k=>(root.querySelector("#f-"+k)?.value||"").trim();
 function validate(){let ok=true;root.querySelectorAll("[data-ncreq]").forEach(el=>{const miss=!el.value.trim();el.closest(".nct-f").classList.toggle("nc-miss",miss);if(miss)ok=false});act3(false,ok);return ok}
 function summary3(){
-  const ck=root.querySelector("#ncCk"),msg=root.querySelector("#ncMsg");if(!ck)return;
+  const ck=root.querySelector("#ncCk");if(!ck)return;
   const R=ROUTES[NC.route],c=CHART[NC.pt],p=PT[NC.pt],q=val("question"),abn=/rising|elevat|inversion|st elev|pause|tachy|wide/i.test(c.labs+" "+c.ecg+" "+c.tele);
   const items=[
     ["Patient name, MRN, brief history, focused question, and callback are included.",val("name")&&val("mrn")&&val("summary")&&q.length>15&&val("cb")],
@@ -559,20 +582,49 @@ function summary3(){
     ["Troponin, ECG, or telemetry abnormalities are linked to a clinical question.",!abn||/\?/.test(q)],
     ["The correct general, admission, or subspecialty cardiology route is selected.",!!NC.route&&(!c.pamf||NC.route==="pamf"||NC.route==="adm")]
   ];
-  ck.innerHTML=items.map(([t,on])=>`<li class="${on?"nc-on":""}"><span class="nct-ck-ic">${on?I.ckGreen:'<span class="nct-ck-dot"></span>'}</span><span>${esc(t)}<span class="sr">${on?" (done)":" (not yet)"}</span></span></li>`).join("");
-  msg.textContent=`New consult — ${R.name}\n${p.name} · MRN ${p.mrn} · Rm ${p.room}\n${val("summary")}\nQ: ${q}\nCallback ${val("cb")} · ${ME}`;
+  if(ck.children.length!==items.length)ck.innerHTML=items.map(([t])=>`<li><span class="nct-ck-ic"><svg viewBox="0 0 20 20" width="20" height="20" aria-hidden="true"><circle class="nct-c" cx="10" cy="10" r="8.25"/><path class="nct-k" d="M6.2 10.4l2.6 2.6 5.1-5.6"/></svg></span><span class="nct-ck-t">${esc(t)}<span class="sr"> (not yet)</span></span></li>`).join("");
+  let n=0;items.forEach(([,on],i)=>{on=!!on;if(on)n++;const li=ck.children[i];if(li.classList.contains("nc-on")!==on){li.classList.toggle("nc-on",on);li.querySelector(".sr").textContent=on?" (done)":" (not yet)"}});
+  const nEl=root.querySelector("#ncCkN"),bar=root.querySelector("#ncCkBar");
+  if(nEl)nEl.textContent=`${n}/${items.length}`;if(bar){bar.style.width=(n/items.length*100)+"%";bar.parentElement.classList.toggle("nc-full",n===items.length)}
 }
 function act3(loading,ok){
-  actions(loading?"":ok?"Ready to send. The fellow will call back to acknowledge.":"Fill the required fields marked *.",`<button type="button" class="ncp-btn nc-ghost" id="b3">Back</button><button type="button" class="ncp-btn" id="send"${loading||!ok?" disabled":""}>Send page</button>`);
-  root.querySelector("#b3").onclick=()=>go(2);root.querySelector("#send").onclick=sendPage;
+  actions(loading?"":ok?"Ready to send. The fellow will call back to acknowledge.":"Fill the required fields marked *.",`<button type="button" class="ncp-btn nc-ghost" id="b3">Back</button><button type="button" class="ncp-btn" id="send"${loading||!ok?" disabled":""}>Review page</button>`);
+  root.querySelector("#b3").onclick=()=>go(2);root.querySelector("#send").onclick=openReview;
 }
-async function sendPage(){
-  const b=root.querySelector("#send");b.disabled=true;b.innerHTML='<span class="nc-spin"></span>Sending…';
-  await sleep(T(900));if(!root)return;
+/* review: the page as the consultant will receive it, in a message-thread preview */
+function openReview(){
+  if(!validate()||root.querySelector(".nc-modal"))return;
+  const R=ROUTES[NC.route],p=PT[NC.pt],urg=root.querySelector("input[name=ncurg]:checked")?.value||"Routine";
+  const lines=[["Patient",`${p.name} · MRN ${p.mrn} · Rm ${p.room}`],["Summary",val("summary")],["Question",val("question")],["Urgency",urg==="Unstable"?"Unstable — emergency response activated":urg],["Callback",`${val("cb")} · ${ME}`]];
+  const m=document.createElement("div");m.className="nc-modal";m.setAttribute("role","dialog");m.setAttribute("aria-modal","true");m.setAttribute("aria-labelledby","ncRvT");
+  m.innerHTML=`<div class="nc-modal-bd"></div><div class="nc-sheet">
+    <div class="nc-sheet-h"><div><h2 id="ncRvT">Review page</h2><p>This is what ${esc(NC.clin)} will receive.</p></div><button type="button" class="nc-x" data-ncclose aria-label="Close">${I.x}</button></div>
+    <div class="nc-phone"><div class="nc-phone-to">${av(NC.clin,34)}<div><b>${esc(NC.clin)}</b><span>${esc(R.name)} · ${esc(pagerText(R))}</span></div></div>
+      <div class="nc-thread"><div class="nc-stamp">Today ${fmtNow()}</div>
+        <div class="nc-bubble"><b class="nc-bubble-h">New consult · ${esc(R.name)}</b>${lines.map(([k,v])=>`<span class="nc-bubble-l"><i>${k}</i>${esc(v)}</span>`).join("")}</div>
+        <div class="nc-receipt" id="ncReceipt">Ready to send</div></div></div>
+    <div class="nc-sheet-f"><button type="button" class="ncp-btn nc-ghost" data-ncclose>Edit</button><button type="button" class="ncp-btn" data-ncsend>Send page</button></div></div>`;
+  root.appendChild(m);
+  const prev=document.activeElement,done=()=>{m.classList.add("nc-out");setTimeout(()=>m.remove(),T(220));prev&&prev.focus&&prev.focus({preventScroll:true})};
+  m.querySelectorAll("[data-ncclose]").forEach(b=>b.onclick=done);m.querySelector(".nc-modal-bd").onclick=done;
+  m.addEventListener("keydown",e=>{if(e.key==="Escape"){e.stopPropagation();done()}});
+  const send=m.querySelector("[data-ncsend]");setTimeout(()=>send.focus({preventScroll:true}),T(60));
+  send.onclick=async()=>{
+    send.disabled=true;send.innerHTML='<span class="nc-spin"></span>Sending…';m.querySelector("[data-ncclose].ncp-btn").disabled=true;
+    const rc=m.querySelector("#ncReceipt"),bub=m.querySelector(".nc-bubble");bub.classList.add("nc-sending");rc.textContent="Sending…";
+    await sleep(T(900));if(!root)return;
+    bub.classList.remove("nc-sending");bub.classList.add("nc-sent");rc.classList.add("nc-delivered");rc.innerHTML=`${I.ok} Delivered to ${esc(pagerText(R))}`;
+    await sleep(T(800));if(!root)return;
+    commitSend();
+  };
+}
+function commitSend(){
   const R=ROUTES[NC.route],urg=root.querySelector("input[name=ncurg]:checked")?.value||"Routine",q=val("question");
   const time=B.tick(),id="n"+Date.now().toString(36);
-  const reason=NC.reason||(NC.topic?TOPIC_LABEL[NC.topic]:q.split(/[.?]/)[0].slice(0,60));
-  C.push({id,pt:NC.pt,svc:"Cardiology",who:NC.clin,whoRole:R.name,urg:urg==="Unstable"?"Emergent":urg,emergent:urg==="Unstable",reason,ordered:time,question:q,requester:ME,
+  const clause=t=>{const x=t.split(/[.?!]/)[0].trim();return x.length>64?x.slice(0,61).trim()+"…":x};
+  const reason=q&&q!==NC.genQ?clause(q):(NC.reason||(NC.topic?TOPIC_LABEL[NC.topic]:clause(q)));
+  const requester=(val("req").split(" · ")[0]||ME).trim(),callback=val("cb")||CALLBACK;
+  C.push({id,pt:NC.pt,svc:"Cardiology",who:NC.clin,whoRole:R.name,urg:urg==="Unstable"?"Emergent":urg,emergent:urg==="Unstable",reason,ordered:time,question:q,requester,callback,
     status:"paged",time,note:`Page sent to ${R.name}${isPager(R.pager)?" (pager "+R.pager+")":""} for ${NC.clin}. No acknowledgement yet.`,
     events:[[time,"Order created","SEAL consult request · chart imported","ok"],[time,"Paged",`${R.name}${isPager(R.pager)?" · pager "+R.pager:""} · ${NC.clin}`,"blue"]]});
   const name=PT[NC.pt].name;close();
