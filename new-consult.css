@@ -705,3 +705,16 @@ body.ncp-open{overflow:hidden}
 .nc-ok-ic path{fill:none;stroke:#1FA463;stroke-width:3;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:30;stroke-dashoffset:30;animation:ncDrawC .35s .45s var(--ease) forwards}
 .nc-ok h2{margin:0;font:600 17px/24px var(--sans);color:#1F2328}
 .nc-ok p{margin:2px 0 0;font-size:13px;color:#575B65}
+
+/* v11 — clinical fixes */
+.nc-rrt{display:flex;align-items:center;gap:8px;margin-top:8px;font-weight:600;cursor:pointer}
+.nc-rrt input{appearance:none;-webkit-appearance:none;width:18px;height:18px;margin:0;border:1.5px solid #D9928B;border-radius:5px;background:#fff no-repeat center/12px 12px;cursor:pointer}
+.nc-rrt input:checked{background-color:#A02A26;border-color:#A02A26;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M3.5 8.5l3 3 6-7' fill='none' stroke='%23fff' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E")}
+.nc-rrt input:focus-visible{outline:2px solid #A02A26;outline-offset:2px}
+.nco-it.nco-static{cursor:default}
+.nco-it.nco-static:hover{border-color:var(--hair);background:#fff}
+.nc-dup .nc-alert-act{align-items:center}
+.nc-dup{align-items:flex-start}
+.nc-dup-t{flex:1;min-width:0}
+.nc-dup-open{margin:0 0 0 2px!important;padding:0 2px!important;font-weight:600;color:var(--ink)!important;text-decoration:underline;text-underline-offset:2px}
+.nc-dup-x{width:26px;height:26px;margin:-2px -4px 0 0}
