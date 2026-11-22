@@ -679,3 +679,29 @@ body.ncp-open{overflow:hidden}
 /* v8 — review shows the page as plain text, exactly as sent */
 .nc-rv .nc-bubble.nc-bubble-text{display:block;white-space:pre-wrap;font:400 13.5px/20px var(--sans);color:#fff;padding:13px 15px}
 .nc-rv .nc-bubble-text *{font:inherit!important;letter-spacing:inherit!important;color:inherit!important}
+
+/* v9 — sent state stays on the message; custom record checkboxes */
+.nc-sentmark{display:inline-flex;align-items:center;gap:5px;font:500 12px/16px var(--sans);color:#13804A;animation:ncTitle .35s .1s var(--ease) both}
+.nc-sentmark svg{width:11px;height:11px}
+.nc-rv-sent .nc-bubble{animation:ncSent .5s var(--ease)}
+.nc-sentbar{gap:12px;justify-content:flex-start!important;padding:14px 20px 18px;margin-top:4px;border-top:1px solid #ECEEF1;animation:ncTitle .4s var(--ease) both}
+.nc-sentbar-ic{flex:none;width:28px;height:28px;border-radius:50%;background:#E8F6EE;color:#13804A;display:grid;place-items:center}
+.nc-sentbar-ic svg{width:13px;height:13px}
+.nc-sentbar-t{flex:1;min-width:0}
+.nc-sentbar-t > b{display:block;font-size:14px;font-weight:600;color:#1F2328}
+.nc-sentbar-t > span{display:block;font-size:12.5px;color:#575B65}
+.nc-sentbar .ncp-btn{flex:none}
+/* chart-record include toggles: rounded square, ink when included */
+.nct-rec-cb input{appearance:none;-webkit-appearance:none;width:18px;height:18px;margin:0;border:1.5px solid #C4C8CF;border-radius:5px;background:#fff no-repeat center/12px 12px;cursor:pointer;transition:background-color .15s,border-color .15s}
+.nct-rec-cb input:hover{border-color:#8A8F98}
+.nct-rec-cb input:checked{background-color:#1F2328;border-color:#1F2328;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M3.5 8.5l3 3 6-7' fill='none' stroke='%23fff' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E")}
+.nct-rec-cb input:focus-visible{outline:2px solid #1F2328;outline-offset:2px}
+
+/* v10 — blue search match, minimal white "page sent" */
+.ncd mark{background:#DCE6FF;color:#1D3FB8;border-radius:3px;padding:0 1px}
+.nc-sheet.nc-ok{width:260px;padding:26px 24px 22px;display:flex;flex-direction:column;align-items:center;text-align:center;background:#fff;animation:ncSheet .32s var(--ease) both}
+.nc-ok-ic{margin-bottom:10px}
+.nc-ok-ic circle{fill:none;stroke:#1FA463;stroke-width:2;stroke-dasharray:132;stroke-dashoffset:132;animation:ncDrawC .5s .05s var(--ease) forwards}
+.nc-ok-ic path{fill:none;stroke:#1FA463;stroke-width:3;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:30;stroke-dashoffset:30;animation:ncDrawC .35s .45s var(--ease) forwards}
+.nc-ok h2{margin:0;font:600 17px/24px var(--sans);color:#1F2328}
+.nc-ok p{margin:2px 0 0;font-size:13px;color:#575B65}

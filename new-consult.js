@@ -134,7 +134,7 @@ function recordsFor(k){
   r.push({id:"labs",icon:"fLab",title:"Cardiac labs · trend",src:"Epic · Laboratory",date:"Today",body:`<table class="nc-doc-tb"><thead><tr><th>Test</th><th>Result</th></tr></thead><tbody>${labs.map(([a,b])=>`<tr><td>${esc(a)}</td><td>${esc(b)}</td></tr>`).join("")}</tbody></table>`});
   r.push({id:"tele",icon:"fHeart",title:"Telemetry summary · 24 h",src:"Epic · Monitoring",date:"Today",body:`<p>${esc(c.tele)}.</p>`});
   if(c.miss.testing)r.push({id:"test",gap:true,title:"Recent cardiac testing",why:c.miss.testing,upTitle:/El Camino/.test(c.miss.testing)?"Outside TTE report · El Camino (2024)":/PAMF/.test(c.miss.testing)?"Holter report · PAMF (2024)":"Cardiac testing report"});
-  else r.push({id:"test",icon:"fDoc",testing:true,title:c.testing.split(":")[0].replace(/\s*·.*$/,""),src:/outside|El Camino|PAMF/i.test(c.testing)?"Outside record":"Epic · Cardiology",date:(/\(([^)]*)\)/.exec(c.testing)||[,""])[1].split(", ").pop()||"",body:`<p>${esc(c.testing)}.</p>`});
+  else r.push({id:"test",icon:"fDoc",testing:true,title:c.testing.split(":")[0].replace(/\s*·.*$/,"").replace(/\s*\(.*\)/,"").trim()+" report",src:/outside|El Camino|PAMF/i.test(c.testing)?"Outside record":"Epic · Cardiology",date:(/\(([^)]*)\)/.exec(c.testing)||[,""])[1].split(", ").pop()||"",body:`<p>${esc(c.testing)}.</p>`});
   r.push({id:"hp",icon:"fDoc",title:"Admission H&P",src:"Epic · Hospital Medicine",date:"This admission",body:`<dl class="nc-doc-dl"><dt>Patient</dt><dd>${esc(p.name)} · ${c.age} ${c.sex} · ${esc(p.room)}</dd><dt>Admitted for</dt><dd>${esc(c.adm)}</dd><dt>History</dt><dd>${esc(c.hx)}</dd><dt>Cardiologist</dt><dd>${esc(c.miss.cardio?"None on file":c.cardio)}</dd></dl>`});
   r.push({id:"meds",icon:"fPill",title:"Medication list",src:"Epic · Pharmacy",date:"Today",body:`<ul class="nc-doc-ul">${c.meds.split(/,\s*/).map(m=>`<li>${esc(m)}</li>`).join("")}</ul>`});
   return r.map(x=>({...x,on:!x.gap}));
@@ -338,13 +338,13 @@ function act1(){
 }
 function importShell(done){
   const p=PT[NC.pt],box=root.querySelector("#ptImp");
-  box.innerHTML=`<div class="nci ${done?"nci-done nci-static":"nci-run"}"><div class="nci-head"><span class="nc-tile${done?"":" nc-live"}">${I.spark}</span><div class="nci-hc"><b class="nci-title">${done?"Chart imported":`Reading ${esc(p.name)}’s chart`}</b><div class="nci-status"></div></div><span class="nci-count">${done?IMPORT.length:0}/${IMPORT.length}</span></div><div class="nci-prog"><i></i></div><div class="nci-list"></div></div>`;
+  box.innerHTML=`<div class="nci ${done?"nci-done nci-static":"nci-run"}"><div class="nci-head"><span class="nc-tile${done?"":" nc-live"}">${I.spark}</span><div class="nci-hc"><b class="nci-title">${done?"Patient information imported":`Gathering ${esc(p.name)}’s patient information`}</b><div class="nci-status"></div></div><span class="nci-count">${done?IMPORT.length:0}/${IMPORT.length}</span></div><div class="nci-prog"><i></i></div><div class="nci-list"></div></div>`;
   return box.firstElementChild;
 }
 const gapOf=(s,c)=>s.miss&&c.miss[s.miss];
 const rowHTML=(s,c)=>{const g=gapOf(s,c);return g?`<div class="nci-row nci-gap"><div><span class="nci-ck nci-ck-gap">!</span><span class="nci-k">${s.k}</span><span class="nci-v"><b>Not found</b> — ${esc(g)}<small>You’ll add this in the request.</small></span></div></div>`:`<div class="nci-row"><div><span class="nci-ck">${I.ck}</span><span class="nci-k">${s.k}</span><span class="nci-v">${s.v(c)}</span></div></div>`};
 const gapCount=c=>IMPORT.filter(s=>gapOf(s,c)).length;
-const doneText=c=>{const g=gapCount(c);return `${IMPORT.length} sources checked`+(g?` · ${g} item${g>1?"s":""} need${g>1?"":"s"} your input`:" · ready to use in the request")};
+const doneText=c=>{const g=gapCount(c);return `${IMPORT.length} records checked`+(g?` · ${g} item${g>1?"s":""} need${g>1?"":"s"} your input`:" · ready to use in the request")};
 const flagHTML=c=>c.flag?`<div class="nci-flag nc-${c.flag.t}"><span class="nc-alert-ic">${I.warn}</span><span>${esc(c.flag.x)}</span></div>`:"";
 function importStatic(){
   const card=importShell(true),c=CHART[NC.pt];
@@ -369,7 +369,7 @@ async function runImport(){
   await sleep(T(300));if(!alive())return;
   NC.imported=true;
   card.classList.remove("nci-run");card.classList.add("nci-done");tile.classList.remove("nc-live");
-  title.textContent="Chart imported";
+  title.textContent="Patient information imported";
   th.set(doneText(c),null,false);
   card.insertAdjacentHTML("beforeend",flagHTML(c));
   act1();
@@ -544,7 +544,7 @@ function buildFields(){
   return {name:p.name,mrn:p.mrn,room:p.room,team:TEAM,req:`${ME} · Attending hospitalist`,cb:CALLBACK,at:`Today · ${fmtNow()}`,need:NC.urg==="Urgent"?"Within 1 hour":"Today",
     summary:`${c.age}-year-old ${c.sex==="F"?"woman":"man"} with ${/^No known/.test(c.hx)?"no known cardiac history":lc(c.hx)}, admitted for ${lc(c.adm)}.`,
     question:q,history:`Cardiac concern: ${c.why}. ${c.hx}. Current medications: ${c.meds}.`,
-    results:`ECG: ${c.ecg}. Telemetry: ${c.tele}. Labs: ${c.labs}.`+(c.miss.testing?"":` Testing: ${c.testing}.`),
+    results:`ECG: ${c.ecg}. Telemetry: ${c.tele}. Labs: ${c.labs}.`,testing:c.miss.testing?"":c.testing,
     cardio:c.miss.cardio?"":`${c.hx} · Cardiologist: ${c.cardio}`,tele:c.tele,labs:c.labs,pamf:c.pamf,ecgOk:c.ecgOk};
 }
 function paint3(){
@@ -563,7 +563,8 @@ function paint3(){
         ${fld("summary","One-line patient summary",1,"",2,"From the chart")}
         ${fld("question","Focused consult question",1,"",3,NC.mode==="ask"&&NC.chat.length?"From your question":"From the topic — make it specific")}
         ${fld("history","Relevant history, treatments, and recent change",0,"",3,"From the chart")}
-        ${fld("results","Pertinent results available now and tests still pending",0,"",3,"From the chart")}</div></section>
+        ${fld("results","Pertinent results available now and tests still pending",0,"",3,"From the chart")}
+        ${fld("testing","Recent cardiac testing (Stanford or outside)",0,"",2,"From the chart")}</div></section>
       <section class="nct-sec" style="animation-delay:180ms"><div class="nct-sh"><span class="nc-num">3</span>Urgency and safety</div><div class="nct-body"><div class="nct-f">
         <div class="nct-radios" role="radiogroup" aria-label="Urgency"><label><input type="radio" name="ncurg" value="Routine">Routine</label><label><input type="radio" name="ncurg" value="Urgent">Urgent</label><label class="nc-bad"><input type="radio" name="ncurg" value="Unstable">Patient unstable — activate local emergency response</label></div>
         <div id="urgNote"></div></div></div></section>
@@ -579,18 +580,18 @@ function paint3(){
   const th=Thinker();pane.querySelector("#gen").appendChild(th);
   const run=NC.sess,key=`${NC.pt}|${NC.route}|${NC.clin}`,restore=NC.draft&&NC.draft.key===key?NC.draft:null,c=CHART[NC.pt];
   (async()=>{
-    if(!restore)for(const [l,i] of [["Reading the imported chart","doc"],["Drafting a one-line summary","pen"],["Linking results to your question","link"],["Filling in the request","form"]]){th.set(l+"…",i);await sleep(T(620));if(!root||NC.step!==3||run!==NC.sess)return}
+    if(!restore)for(const [l,i] of [["Reading the patient information","doc"],["Drafting a one-line summary","pen"],["Linking results to your question","link"],["Filling in the request","form"]]){th.set(l+"…",i);await sleep(T(620));if(!root||NC.step!==3||run!==NC.sess)return}
     pane.querySelector("#gen").remove();pane.querySelector("#secs").hidden=false;
     if(restore)pane.querySelectorAll(".nct-sec").forEach(x=>x.style.animation="none");
     const rad=restore?restore.radios:{ncurg:NC.unstable?"Unstable":NC.urg,ncpamf:f.pamf?"yes":"no",ncecg:f.ecgOk?"yes":"no"};
     Object.entries(rad).forEach(([n,v])=>{const r=pane.querySelector(`input[name=${n}][value="${v}"]`);if(r)r.checked=true});
     if(!restore||!NC.recs||NC.recsPt!==NC.pt){NC.recs=recordsFor(NC.pt);NC.recsPt=NC.pt}renderRecs();
     urgNote();summary3();NC.genQ=restore?restore.genQ:f.question;pane.querySelectorAll(".nc-lock input").forEach(i=>{i.readOnly=true;i.title="From the patient’s chart"});
-    const need={};if(c.miss.cardio)need.cardio=["Add prior cardiac history and the cardiologist, or “None known”.",`Not in the chart — ${c.miss.cardio}.`];if(c.miss.testing)need.results=["Add the recent cardiac testing result here.",`Not in the chart — ${c.miss.testing}.`];
-    for(const k of ["name","mrn","room","team","req","cb","at","need","summary","question","history","results","cardio","tele","labs"]){
+    const need={};if(c.miss.cardio)need.cardio=["Add prior cardiac history and the cardiologist, or “None known”.",`Not in the chart — ${c.miss.cardio}.`];if(c.miss.testing)need.testing=["Type a summary, or upload the report in Chart records below.",`Not in the chart — ${c.miss.testing}.`];
+    for(const k of ["name","mrn","room","team","req","cb","at","need","summary","question","history","results","testing","cardio","tele","labs"]){
       const el=pane.querySelector("#f-"+k);if(!el||!root||NC.step!==3)return;const v=restore?restore.vals[k]:(f[k]||""),w=el.closest(".nct-f");
       if(need[k]){w.classList.add("nc-need");el.placeholder=need[k][0];const sEl=w.querySelector(".nct-src");if(sEl)sEl.remove();w.insertAdjacentHTML("beforeend",`<span class="nct-need"><span class="nct-need-ic">!</span><b>Needs your input</b>${esc(need[k][1])}</span>`)}
-      if(restore){el.value=v;continue}
+      if(restore){el.value=v??"";continue}
       w.classList.add("nc-fill");
       if(RM||v.length<4)el.value=v;else{const st=Math.max(2,Math.ceil(v.length/22));for(let i=0;i<=v.length;i+=st){el.value=v.slice(0,i);await sleep(14)}el.value=v}
       setTimeout(()=>w.classList.remove("nc-fill"),T(900));summary3();
@@ -613,6 +614,7 @@ function renderRecs(){
     li.innerHTML=`<span class="nct-rec-ic">${I.upload}</span><div class="nct-rec-t"><b>${esc(r.upTitle)}.pdf</b><span class="nct-up"><i></i></span></div>`;
     await sleep(T(1300));if(!root)return;
     NC.recs[i]={id:r.id,icon:"fDoc",testing:true,title:r.upTitle,src:"Uploaded by you",date:"Today",up:true,on:true,body:`<p class="nc-doc-note">Uploaded file · ${esc(r.upTitle)}.pdf</p><p>Outside report attached by ${esc(ME)}. Original document is included as a PDF.</p>`};
+    const tf=root.querySelector("#f-testing");if(tf&&!tf.value.trim()){tf.value=`See attached: ${r.upTitle}.`;tf.dispatchEvent(new Event("input",{bubbles:true}))}
     renderRecs();summary3();
   };
 }
@@ -626,7 +628,7 @@ function openDoc(r){
 }
 function saveDraft(){
   if(!root||!root.querySelector("#f-question")||root.querySelector("#gen"))return;
-  const vals={};["name","mrn","room","team","req","cb","at","need","summary","question","history","results","cardio","tele","labs"].forEach(k=>vals[k]=root.querySelector("#f-"+k).value);
+  const vals={};["name","mrn","room","team","req","cb","at","need","summary","question","history","results","testing","cardio","tele","labs"].forEach(k=>vals[k]=root.querySelector("#f-"+k).value);
   const radios={};["ncurg","ncpamf","ncecg"].forEach(n=>{const r=root.querySelector(`input[name=${n}]:checked`);if(r)radios[n]=r.value});
   NC.draft={key:`${NC.pt}|${NC.route}|${NC.clin}`,vals,radios,genQ:NC.genQ};
 }
@@ -637,10 +639,9 @@ function urgNote(){const v=root.querySelector("input[name=ncurg]:checked")?.valu
 const val=k=>(root.querySelector("#f-"+k)?.value||"").trim();
 function validate(){let ok=true;root.querySelectorAll("[data-ncreq]").forEach(el=>{const miss=!el.value.trim(),w=el.closest(".nct-f");w.classList.toggle("nc-miss",miss&&!w.classList.contains("nc-need"));if(miss)ok=false});act3(false,ok);return ok}
 const TESTING_RE=/testing|\btte\b|\btee\b|\becho|holter|\bmri\b|stress|\bcath|angiogra|no prior/i;
-const CK_TARGET=["_core","cardio","labs","_test","question","_route"];
+const CK_TARGET=["_core","cardio","labs","testing","question","_route"];
 function jumpTo(k){
   if(k==="_core")k=["summary","question","cb"].find(x=>!val(x))||"question";
-  if(k==="_test"){const g=root.querySelector(".nct-rec-gap");if(g){g.scrollIntoView({block:"center",behavior:RM?"auto":"smooth"});g.classList.remove("nc-flash");void g.offsetWidth;g.classList.add("nc-flash");return}k="results"}
   const w=k==="_route"?root.querySelector(".nct-to"):root.querySelector("#f-"+k)?.closest(".nct-f");if(!w)return;
   w.scrollIntoView({block:"center",behavior:RM?"auto":"smooth"});
   w.classList.remove("nc-flash");void w.offsetWidth;w.classList.add("nc-flash");
@@ -648,15 +649,15 @@ function jumpTo(k){
 }
 function summary3(){
   const ck=root.querySelector("#ncCk");if(!ck)return;
-  const cw=root.querySelector('.nct-f[data-nck="cardio"]'),rw=root.querySelector('.nct-f[data-nck="results"]');
+  const cw=root.querySelector('.nct-f[data-nck="cardio"]'),rw=root.querySelector('.nct-f[data-nck="testing"]');
   if(cw&&cw.classList.contains("nc-need")&&val("cardio").length>3)cw.classList.remove("nc-need");
-  if(rw&&rw.classList.contains("nc-need")&&(TESTING_RE.test(val("results"))||(NC.recs&&NC.recs.some(r=>r.on&&r.up))))rw.classList.remove("nc-need");
+  if(rw&&rw.classList.contains("nc-need")&&val("testing").length>3)rw.classList.remove("nc-need");
   const R=ROUTES[NC.route],c=CHART[NC.pt],p=PT[NC.pt],q=val("question"),abn=/rising|elevat|inversion|st elev|pause|tachy|wide/i.test(c.labs+" "+c.ecg+" "+c.tele);
   const items=[
     ["Patient name, MRN, brief history, focused question, and callback are included.",val("name")&&val("mrn")&&val("summary")&&q.length>15&&val("cb")],
     ["Prior cardiac history and the patient’s cardiologist are identified.",val("cardio").length>8],
     ["Updated ECG and pertinent cardiac laboratory trends are available or pending.",!!root.querySelector("input[name=ncecg]:checked")&&val("labs")],
-    ["Recent Stanford or outside cardiac testing is summarized.",TESTING_RE.test(val("results"))||!!(NC.recs&&NC.recs.some(r=>r.on&&r.testing))],
+    ["Recent Stanford or outside cardiac testing is summarized.",val("testing").length>3],
     ["Troponin, ECG, or telemetry abnormalities are linked to a clinical question.",!abn||/\?/.test(q)],
     ["The correct general, admission, or subspecialty cardiology route is selected.",!!NC.route&&(!c.pamf||NC.route==="pamf"||NC.route==="adm")]
   ];
@@ -678,7 +679,7 @@ function openReview(){
   const uLabel=urg==="Unstable"?"Unstable · emergency response activated":urg;
   const m=document.createElement("div");m.className="nc-modal";m.setAttribute("role","dialog");m.setAttribute("aria-modal","true");m.setAttribute("aria-labelledby","ncRvT");
   const att=(NC.recs||[]).filter(r=>r.on&&!r.gap);
-  const pageText=[`New consult — ${R.name}`,`${p.name} · MRN ${p.mrn} · Rm ${p.room}`,"",`Q: ${val("question")}`,"",val("summary"),"",`Urgency: ${uLabel}`,`Callback ${val("cb")} · ${reqName}`]
+  const pageText=[`New consult — ${R.name}`,`${p.name} · MRN ${p.mrn} · Rm ${p.room}`,"",`Q: ${val("question")}`,"",val("summary"),...(val("testing")?["",`Testing: ${val("testing")}`]:[]),"",`Urgency: ${uLabel}`,`Callback ${val("cb")} · ${reqName}`]
     .concat(att.length?[`Attached: ${att.length} chart record${att.length===1?"":"s"} (${att.map(r=>r.title).join(", ")})`]:[]).join("\n");
   m.innerHTML=`<div class="nc-modal-bd"></div><div class="nc-sheet nc-rv">
     <div class="nc-sheet-h"><div><h2 id="ncRvT">Review page</h2><p>This is what ${esc(NC.clin)} will receive.</p></div><button type="button" class="nc-x" data-ncclose aria-label="Close">${I.x}</button></div>
@@ -700,14 +701,10 @@ function openReview(){
     send.disabled=true;send.innerHTML='<span class="nc-spin"></span>Sending…';m.querySelectorAll("[data-ncclose]").forEach(b=>b.disabled=true);
     await sleep(T(900));if(!root)return;
     sent=pushRecord();
-    const sheet=m.querySelector(".nc-sheet"),first=NC.clin.replace(/,.*$/,"");
-    sheet.classList.add("nc-sheet-done");
-    sheet.innerHTML=`<div class="nc-done"><div class="nc-done-ic" aria-hidden="true"><svg viewBox="0 0 56 56" width="56" height="56"><circle class="nc-done-c" cx="28" cy="28" r="25"/><path class="nc-done-k" d="M17 29l7.5 7.5L40 21"/></svg></div>
-      <h2 id="ncRvT">Page sent</h2>
-      <div class="nc-done-to">${av(NC.clin,28)}<span>To <b>${esc(NC.clin)}</b><br>${esc(R.name)} · ${esc(pagerText(R))} · ${fmt(sent.time)}</span></div>
-      <p class="nc-done-sub">${esc(first)} will call back on <b>${esc(val("cb"))}</b> to acknowledge. You can follow the consult in My consults.</p>
-      <button type="button" class="ncp-btn" data-ncfinish>Back to My consults</button></div>`;
-    setTimeout(()=>{const b=m.querySelector("[data-ncfinish]");b&&b.focus({preventScroll:true})},T(400));
+    const sheet=m.querySelector(".nc-sheet");
+    sheet.className="nc-sheet nc-ok";sheet.setAttribute("role","status");
+    sheet.innerHTML=`<svg class="nc-ok-ic" viewBox="0 0 48 48" width="44" height="44" aria-hidden="true"><circle cx="24" cy="24" r="21"/><path d="M15 25l6 6 12-13"/></svg><h2 id="ncRvT">Page sent</h2><p>To ${esc(NC.clin)}</p>`;
+    setTimeout(()=>finishSend(sent),T(1700));
   };
 }
 function pushRecord(){
@@ -724,7 +721,7 @@ function pushRecord(){
   return {id,time,name:PT[NC.pt].name,route:R.name};
 }
 function finishSend(info){
-  if(!info||!root)return;close();
+  if(!info||!root||info.done)return;info.done=true;close();
   try{B.render()}catch(e){console.error(e)}
   setTimeout(()=>{const r=document.querySelector(`.tr.row[data-id="${info.id}"]`);if(r){r.classList.add("ncp-new");r.scrollIntoView({block:"center",behavior:RM?"auto":"smooth"})}},30);
   const live=document.getElementById("tdlive");if(live)live.textContent=`Consult page sent to ${info.route} for ${info.name}.`;
