@@ -708,9 +708,8 @@ function openReview(){
   const uLabel=urg==="Unstable"?"Unstable · RRT/code called":urg;
   const m=document.createElement("div");m.className="nc-modal";m.setAttribute("role","dialog");m.setAttribute("aria-modal","true");m.setAttribute("aria-labelledby","ncRvT");
   const att=(NC.recs||[]).filter(r=>r.on&&!r.gap);
-  const resLines=val("results").split(/(?<=\.)\s+(?=(?:ECG|Telemetry|Labs):)/).filter(Boolean);
-  const pageText=[`New consult — ${R.name}`,`${p.name} · MRN ${p.mrn} · Rm ${p.room}`,"",`Q: ${val("question")}`,"",val("summary"),...(val("cardio")?[`History: ${val("cardio")}`]:[]),"",...resLines,...(val("testing")?[`Testing: ${val("testing")}`]:[]),"",`Urgency: ${uLabel} · needed by ${val("need")||"today"}`,`Callback ${val("cb")} · ${reqName}`]
-    .concat(att.length?[`Attached: ${att.length} chart record${att.length===1?"":"s"} (${att.map(r=>r.title).join(", ")})`]:[]).join("\n");
+  const pageText=[`New consult — ${R.name}`,`${p.name} · MRN ${p.mrn} · Rm ${p.room}`,"",`Q: ${val("question")}`,"",val("summary"),"",`Urgency: ${uLabel}${urg!=="Routine"?" · needed "+(val("need")||"now").toLowerCase():""}`,`Callback ${val("cb")} · ${reqName}`]
+    .concat(att.length?[`Attached: ${att.length} chart record${att.length===1?"":"s"}`]:[]).join("\n");
   m.innerHTML=`<div class="nc-modal-bd"></div><div class="nc-sheet nc-rv">
     <div class="nc-sheet-h"><div><h2 id="ncRvT">Review page</h2><p>This is what ${esc(NC.clin)} will receive.</p></div><button type="button" class="nc-x" data-ncclose aria-label="Close">${I.x}</button></div>
     <div class="nc-phone">
@@ -731,10 +730,14 @@ function openReview(){
     send.disabled=true;send.innerHTML='<span class="nc-spin"></span>Sending…';m.querySelectorAll("[data-ncclose]").forEach(b=>b.disabled=true);
     await sleep(T(900));if(!root)return;
     sent=pushRecord();
-    const sheet=m.querySelector(".nc-sheet");
-    sheet.className="nc-sheet nc-ok";sheet.setAttribute("role","status");
-    sheet.innerHTML=`<svg class="nc-ok-ic" viewBox="0 0 48 48" width="44" height="44" aria-hidden="true"><circle cx="24" cy="24" r="21"/><path d="M15 25l6 6 12-13"/></svg><h2 id="ncRvT">Page sent</h2><p>To ${esc(NC.clin)}</p>`;
-    setTimeout(()=>finishSend(sent),T(1700));
+    const sheet=m.querySelector(".nc-sheet"),first=NC.clin.replace(/,.*$/,"");
+    sheet.classList.add("nc-rv-sent");
+    sheet.querySelector("#ncRvT").textContent="Page sent";
+    sheet.querySelector(".nc-sheet-h p").textContent=`Delivered to ${NC.clin} · ${pagerText(R)}`;
+    const x=sheet.querySelector(".nc-x");if(x){x.disabled=false;x.removeAttribute("data-ncclose");x.setAttribute("data-ncfinish","");x.setAttribute("aria-label","Back to My consults")}
+    sheet.querySelector(".nc-bubble").insertAdjacentHTML("afterend",`<div class="nc-sentmark">${I.ok}Sent · ${fmt(sent.time)}</div>`);
+    sheet.querySelector(".nc-sheet-f").outerHTML=`<div class="nc-sheet-f nc-sentbar"><span class="nc-sentbar-ic">${I.ok}</span><div class="nc-sentbar-t"><b>Page sent to ${esc(pagerText(R))}</b><span>${esc(first)} will call back on ${esc(val("cb"))} to acknowledge.</span></div><button type="button" class="ncp-btn" data-ncfinish>Back to My consults</button></div>`;
+    setTimeout(()=>{const b=m.querySelector("[data-ncfinish].ncp-btn");b&&b.focus({preventScroll:true})},T(400));
   };
 }
 function pushRecord(){
@@ -748,12 +751,13 @@ function pushRecord(){
   C.push({id,pt:NC.pt,svc:"Cardiology",who:NC.clin,whoRole:R.name,urg:urg==="Unstable"?"Emergent":urg,emergent:urg==="Unstable",reason,ordered:time,question:q,requester,callback,
     status:"paged",time,note:`Page sent to ${R.name}${isPager(R.pager)?" (pager "+R.pager+")":""} for ${NC.clin}. No acknowledgement yet.`,
     events:[[time,"Order created",`SEAL consult request · ${files.length} chart record${files.length===1?"":"s"} attached`,"ok"],[time,"Paged",`${R.name}${isPager(R.pager)?" · pager "+R.pager:""} · ${NC.clin}`,"blue"]]});
-  return {id,time,name:PT[NC.pt].name,route:R.name};
+  return {id,time,name:PT[NC.pt].name,route:R.name,clin:NC.clin};
 }
 function finishSend(info){
   if(!info||!root||info.done)return;info.done=true;close();
   try{B.render()}catch(e){console.error(e)}
   setTimeout(()=>{const r=document.querySelector(`.tr.row[data-id="${info.id}"]`);if(r){r.classList.add("ncp-new");r.scrollIntoView({block:"center",behavior:RM?"auto":"smooth"})}},30);
+  toast(`Page sent to ${info.clin} · ${info.route}`);
   const live=document.getElementById("tdlive");if(live)live.textContent=`Consult page sent to ${info.route} for ${info.name}.`;
 }
 function toast(msg){

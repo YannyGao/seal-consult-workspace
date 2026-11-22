@@ -718,3 +718,8 @@ body.ncp-open{overflow:hidden}
 .nc-dup-t{flex:1;min-width:0}
 .nc-dup-open{margin:0 0 0 2px!important;padding:0 2px!important;font-weight:600;color:var(--ink)!important;text-decoration:underline;text-underline-offset:2px}
 .nc-dup-x{width:26px;height:26px;margin:-2px -4px 0 0}
+
+/* v12 — review fits with buttons always visible */
+.nc-sheet.nc-rv{display:flex;flex-direction:column;max-height:calc(100vh - 48px);overflow:hidden}
+.nc-rv .nc-phone{flex:1;min-height:0;overflow:auto}
+.nc-rv .nc-sheet-f{flex:none;background:#fff}
