@@ -2675,6 +2675,61 @@ button.fl-item:focus-visible{outline:2px solid var(--focus);outline-offset:2px}
 /* filter + tab controls sit on white now: lighter outline */
 :root[data-ds="figma"] #fbar :is(.dd-btn,.tsel),:root[data-ds="figma"] .apg-btn{border-color:#E1E3E8;box-shadow:none}
 :root[data-ds="figma"] .tab .cnt{background:#EDEEF1;color:#555861}
+/* --- pass 2: measured against the frame at 200% --- */
+/* vertical rhythm: header band 96px (items centred at 48), title 5px under it, attention row and cards pulled up */
+:root[data-ds="figma"]{--toph:96px}
+:root[data-ds="figma"] .app{grid-template-rows:96px minmax(0,1fr)!important}
+:root[data-ds="figma"] .app > .top{height:96px}
+:root[data-ds="figma"] .main{padding-top:5px!important;padding-bottom:64px!important}
+:root[data-ds="figma"] .main .head{height:auto;margin-bottom:13px}
+:root[data-ds="figma"] .apg-head{margin-bottom:6px}
+:root[data-ds="figma"] .tabs ~ .groups{margin-top:17px}
+/* attention cards: 16px outer radius, rounded white body over the band (no divider), soft resting shadow, darker hairline + dashed box */
+:root[data-ds="figma"] .acard.fgc{border-color:#DCDEE2;border-radius:16px;box-shadow:0 2px 6px -1px rgba(16,24,40,.07)}
+:root[data-ds="figma"] .fg-body{border-top:0;border-radius:12px 12px 0 0;padding-bottom:18px}
+:root[data-ds="figma"] .fg-sys{border-color:#A9B0BB}
+/* tabs: single 2px underline (border only, no extra inset shadow) */
+:root[data-ds="figma"] .tab[aria-selected="true"]{box-shadow:none}
+/* table: column widths + 22px first-cell inset with the unread dot in it, 41px header, darker header labels */
+:root[data-ds="figma"] .groups.v-rows{--cols:minmax(220px,290fr) 270px minmax(220px,321fr) minmax(200px,377fr)!important}
+:root[data-ds="figma"] .groups.v-patient{--cols:270px minmax(220px,321fr) minmax(200px,377fr)!important}
+:root[data-ds="figma"] .rest .tr > div:first-child{padding-left:22px}
+:root[data-ds="figma"] .udot{left:6px}
+:root[data-ds="figma"] .th.flat > div{min-height:40px}
+:root[data-ds="figma"] .tr.th [role="columnheader"]{color:#3F4450!important}
+:root[data-ds="figma"] .row .st .fg-upd{gap:1px}
+:root[data-ds="figma"] .rest .tr.row > div:not(.st){padding-top:16px}
+:root[data-ds="figma"] .svcc{align-items:flex-start}
+:root[data-ds="figma"] .svcc > :first-child{margin-top:3px}
+/* unread rows: only the name, service and reason get heavier; ID line, time and service subtitle stay regular */
+:root[data-ds="figma"] .row.unread :is(.p2,.idline,.idmrn,.idroom){font-weight:400}
+/* filter / group / sort: no leading icons, 16px inset, larger chevron, Figma-weight outline */
+:root[data-ds="figma"] #fbar .dd-btn > svg:not(.dd-chev){display:none}
+:root[data-ds="figma"] #fbar :is(.dd-btn,.tsel){padding:0 10px 0 16px;border-color:#D5D8DE;box-shadow:0 1px 2px rgba(16,24,40,.04)}
+:root[data-ds="figma"] #fbar .dd-chev{width:16px;height:16px;margin-left:2px}
+:root[data-ds="figma"] #fbar .dd-btn[data-for="sort"] .dd-k::after{content:":"}
+:root[data-ds="figma"] .apg-btn{border-color:#D5D8DE}
+:root[data-ds="figma"] .rest .tr.row > div{padding-bottom:17px}
+:root[data-ds="figma"] .tr.row .pc .p2{margin-top:1px}
+:root[data-ds="figma"] .tr.th{border-bottom-color:#E6E8EC}
+:root[data-ds="figma"] .tr.th + .tr.row{border-top:0}
+:root[data-ds="figma"] .tabs{border-bottom-color:#DEE0E4}
+:root[data-ds="figma"] .tab .cnt{background:#E9EAED}
+/* attention cards: 24px gutter (cards ~404px wide at 1440) */
+:root[data-ds="figma"] .agrid{gap:24px}
+/* search: sits 10px right of centre, 41px inset to the text, darker hairline + soft shadow, ink2 placeholder */
+:root[data-ds="figma"] .top .gsearch{position:relative;left:10px;border-color:#D9DBE0;box-shadow:0 2px 6px -1px rgba(16,24,40,.06)}
+:root[data-ds="figma"] .top .gsearch svg{left:16px;color:var(--fg-ink2)}
+:root[data-ds="figma"] .top .gsearch input{padding-left:24px}
+:root[data-ds="figma"] .gsearch input::placeholder{color:var(--fg-ink2)}
+/* text + status colours (neutral greys compared like-for-like; saturated colours sampled from the unmanaged Figma canvas) */
+:root[data-ds="figma"]{--fg-ink2:#575B65;--fg-red-tx:#A02A26;--fg-yel-tx:#784B0E;--fg-pill-red-tx:#A02A26;--fg-pill-yel-bg:#FEF2C8;--fg-pill-yel-tx:#784B0E;--fg-pill-gray-tx:#5E616B}
+:root[data-ds="figma"] .fg-urg{color:#A02A26}
+:root[data-ds="figma"] .udot{background:#2F60E6}
+/* paged follow-up: sits above the pill, semibold orange-brown like the Figma "Follow up?" line */
+:root[data-ds="figma"] .fg-upd .fg-await{order:-1;margin-bottom:3px;font-weight:600;color:#A65A12}
+/* handoff line: time in the same sans as the sentence */
+:root[data-ds="figma"] .hand .ds-mono{font-family:var(--fg-sans)!important;font-weight:400;letter-spacing:0}
 </style>
 
 <div class="app" data-lay="C">
