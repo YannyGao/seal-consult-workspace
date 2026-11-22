@@ -316,14 +316,17 @@ const ptChip=()=>{const p=PT[NC.pt];return `<div class="nc-ptchip"><span class="
 function bindChip(){const b=root.querySelector("[data-ncgo]");if(b)b.onclick=()=>go(1)}
 
 /* ---------- step 1: patient ---------- */
+/* step 1 is specialty-neutral: we don't know who will be consulted yet */
+const OUTSIDE={B:"outside records from El Camino Health (2024)",G:"outside records from PAMF (2024)"};
+const studiesOf=c=>{const ecg=`ECG ${c.ecg.replace(/^Today /,"today ")}`;return /^None/.test(c.testing)?`${ecg}<small>No other recent studies on file</small>`:`${ecg}<small>${esc(c.testing)}</small>`};
 const IMPORT=[
   {k:"Demographics & room",think:"Reading demographics",ic:"person",v:c=>`${c.age}-year-old ${c.sex==="F"?"woman":"man"} · ${esc(PT[NC.pt].room)} · ${unitOf(PT[NC.pt].room)}`},
   {k:"Admission & team",think:"Checking the admission note",ic:"doc",v:c=>`${esc(c.adm)}<small>${esc(TEAM)}</small>`},
-  {k:"Why cardiology",think:"Finding the cardiac concern",ic:"link",v:c=>esc(c.why)},
-  {k:"Cardiac history",think:"Reviewing cardiac history",ic:"heart",miss:"cardio",v:c=>`${esc(c.hx)}<small>Cardiologist: ${esc(c.cardio)}</small>`},
-  {k:"Latest ECG & telemetry",think:"Reading the latest ECG",ic:"ecg",v:c=>`${esc(c.ecg)}<small>Telemetry: ${esc(c.tele)}</small>`},
-  {k:"Cardiac labs & trend",think:"Trending cardiac labs",ic:"labs",v:c=>esc(c.labs)},
-  {k:"Recent cardiac testing",think:"Looking for recent testing",ic:"scope",miss:"testing",v:c=>esc(c.testing)}
+  {k:"Problem list & history",think:"Reviewing the problem list",ic:"doc",v:c=>esc(c.hx)},
+  {k:"Medications",think:"Reviewing medications",ic:"labs",v:c=>esc(c.meds)},
+  {k:"Recent labs",think:"Pulling recent labs",ic:"labs",v:c=>esc(c.labs)},
+  {k:"Monitoring",think:"Reading monitoring data",ic:"ecg",v:c=>esc(c.tele)},
+  {k:"Recent studies & outside records",think:"Looking for recent studies",ic:"scope",out:true,v:c=>studiesOf(c)}
 ];
 function paint1(){
   const pane=root.querySelector("#ncpPane");
@@ -347,10 +350,10 @@ function importShell(done){
   box.innerHTML=`<div class="nci ${done?"nci-done nci-static":"nci-run"}"><div class="nci-head"><span class="nc-tile${done?"":" nc-live"}">${I.spark}</span><div class="nci-hc"><b class="nci-title">${done?"Patient information imported":`Gathering ${esc(p.name)}’s patient information`}</b><div class="nci-status"></div></div><span class="nci-count">${done?IMPORT.length:0}/${IMPORT.length}</span></div><div class="nci-prog"><i></i></div><div class="nci-list"></div></div>`;
   return box.firstElementChild;
 }
-const gapOf=(s,c)=>s.miss&&c.miss[s.miss];
-const rowHTML=(s,c)=>{const g=gapOf(s,c);return g?`<div class="nci-row nci-gap"><div><span class="nci-ck nci-ck-gap">!</span><span class="nci-k">${s.k}</span><span class="nci-v"><b>Not found</b> — ${esc(g)}<small>You’ll add this in the request.</small></span></div></div>`:`<div class="nci-row"><div><span class="nci-ck">${I.ck}</span><span class="nci-k">${s.k}</span><span class="nci-v">${s.v(c)}</span></div></div>`};
+const gapOf=(s,c)=>s.out&&OUTSIDE[NC.pt];
+const rowHTML=(s,c)=>{const g=gapOf(s,c);return g?`<div class="nci-row nci-gap"><div><span class="nci-ck nci-ck-gap">!</span><span class="nci-k">${s.k}</span><span class="nci-v">ECG ${esc(c.ecg.replace(/^Today /,"today "))}<small><b>Not in Epic</b> — ${esc(g)}. You can add or upload them later.</small></span></div></div>`:`<div class="nci-row"><div><span class="nci-ck">${I.ck}</span><span class="nci-k">${s.k}</span><span class="nci-v">${s.v(c)}</span></div></div>`};
 const gapCount=c=>IMPORT.filter(s=>gapOf(s,c)).length;
-const doneText=c=>{const g=gapCount(c);return `${IMPORT.length} records checked`+(g?` · ${g} item${g>1?"s":""} need${g>1?"":"s"} your input`:" · ready to use in the request")};
+const doneText=c=>{const g=gapCount(c);return `${IMPORT.length} records checked`+(g?" · some outside records aren’t in Epic":" · ready to use in the request")};
 const flagHTML=c=>c.flag?`<div class="nci-flag nc-${c.flag.t}"><span class="nc-alert-ic">${I.warn}</span><span>${esc(c.flag.x)}</span></div>`:"";
 function existingOf(k){return C.filter(x=>x.pt===k&&x.svc==="Cardiology"&&!x.archived&&x.status!=="done")}
 function dupHTML(){const ex=existingOf(NC.pt);if(!ex.length)return "";const x=ex[ex.length-1],st={paged:"Paged",accepted:"Accepted",info:"Information requested",infoupd:"Information updated",recs:"Recommendations recorded",failed:"Page failed",redirected:"Redirection requested",redirsent:"Page submitted"}[x.status]||x.status;
@@ -365,7 +368,7 @@ function importStatic(){
   const card=importShell(true),c=CHART[NC.pt];
   card.querySelector(".nci-list").innerHTML=IMPORT.map(s=>rowHTML(s,c)).join("");
   const th=Thinker();card.querySelector(".nci-status").appendChild(th);th.set(doneText(c),null,false);
-  card.insertAdjacentHTML("beforeend",flagHTML(c));
+
 }
 async function runImport(){
   const run=++importRun,c=CHART[NC.pt],n=IMPORT.length,D=T(760);
@@ -386,7 +389,7 @@ async function runImport(){
   card.classList.remove("nci-run");card.classList.add("nci-done");tile.classList.remove("nc-live");
   title.textContent="Patient information imported";
   th.set(doneText(c),null,false);
-  card.insertAdjacentHTML("beforeend",flagHTML(c));
+
   act1();
 }
 
