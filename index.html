@@ -2731,6 +2731,7 @@ button.fl-item:focus-visible{outline:2px solid var(--focus);outline-offset:2px}
 /* handoff line: time in the same sans as the sentence */
 :root[data-ds="figma"] .hand .ds-mono{font-family:var(--fg-sans)!important;font-weight:400;letter-spacing:0}
 </style>
+<link rel="stylesheet" href="new-consult.css">
 
 <div class="app" data-lay="C">
   <nav class="side" aria-label="Workspace">
@@ -4975,5 +4976,8 @@ loadColors();loadShadow();
 window.addEventListener("hashchange",fromHash);
 fromHash();renderPanel();document.querySelector(".app").dataset.fls="list";setShell("b");$("shellSel").value="b";$("pnlSel").value=S.pnl;
 try{const o=new URLSearchParams(location.search).get("open");if(o&&byId(o))openRow(o,false)}catch(_){}
+/* bridge for the New consult page (new-consult.js) */
+window.SEAL_BRIDGE={C,PT,av,ME,TEAM,CALLBACK,NOW,fmt,render:()=>render(),tick:()=>"12:"+String(sendMin++).padStart(2,"0")};
 })();
 </script>
+<script src="new-consult.js"></script>
