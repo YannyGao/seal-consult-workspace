@@ -2637,6 +2637,44 @@ button.fl-item:focus-visible{outline:2px solid var(--focus);outline-offset:2px}
 /* prototype controls live at the foot of the rail, never over content */
 :root[data-ds="figma"][data-rail] .pcbtn{left:20px!important;right:auto!important;bottom:16px!important}
 :root[data-ds="figma"][data-rail] .pcpanel{left:96px!important;right:auto!important;bottom:16px!important}
+
+/* =====================================================================
+   Figma refresh — node 273:6380 "Comparison · Cool-neutral foundation (color only)".
+   Visual-only overrides (colors, borders, elevation). No layout or behavior changes.
+   ===================================================================== */
+:root[data-ds="figma"]{--fg-canvas:#FFFFFF;--canvas:#FFFFFF;--fg-ink:#1F2328;--fg-ink2:#62666F;--fg-hair:#E6E8EC;--fg-line:#EFF0F3;--fg-bub:#F3F4F8;
+  --fg-card-bd:#E6E8EC;--fg-sh:none;--line:#E6E8EC;--line-2:#EFF0F3;--head:#F7F8FA;
+  --fg-red-band:#FBE6E5;--fg-red-tx:#8A3A30;--fg-yel-band:#FDF1C7;--fg-yel-tx:#6B5322;
+  --fg-pill-red-bg:#FCE4E2;--fg-pill-red-tx:#8E3B34;--fg-pill-yel-bg:#FDF0C4;--fg-pill-yel-tx:#6E5420;--fg-pill-gray-bg:#EDEEF1;--fg-pill-gray-tx:#555861}
+/* canvas: white page, header on the same surface */
+:root[data-ds="figma"] :is(body,.app,.shell,.main,.app > .top){background:#FFFFFF!important}
+:root[data-ds="figma"] .top .gsearch{border-color:#E1E3E8;box-shadow:none}
+/* attention cards: white body, hairline border, flat (lift only on hover), softer bands */
+:root[data-ds="figma"] .acard.fgc{border:1px solid var(--fg-card-bd);border-radius:12px;box-shadow:none}
+:root[data-ds="figma"] .acard.fgc:hover{box-shadow:0 1px 2px rgba(16,24,40,.04),0 6px 16px -6px rgba(16,24,40,.10)}
+:root[data-ds="figma"] .acard.fgc[aria-selected="true"]{border-color:#C9CDD4;box-shadow:0 1px 2px rgba(16,24,40,.05),0 6px 16px -6px rgba(16,24,40,.12)}
+:root[data-ds="figma"] .acard.fgc.fg-red{--band:var(--fg-red-band);--btx:var(--fg-red-tx);--bdot:var(--fg-red-tx)}
+:root[data-ds="figma"] .acard.fgc.fg-amber{--band:var(--fg-yel-band);--btx:var(--fg-yel-tx);--bdot:var(--fg-yel-tx)}
+:root[data-ds="figma"] .fg-band{font-weight:500}
+:root[data-ds="figma"] .fg-dot{display:none}
+:root[data-ds="figma"] .fg-body{border-radius:0;border-top:1px solid color-mix(in srgb,var(--band),#101828 6%)}
+:root[data-ds="figma"] .fg-sys{border-color:#C4C8CF}
+/* table: hairline panel, no shadow, cool-gray header */
+:root[data-ds="figma"] .groups .sec{border:1px solid var(--fg-hair);border-radius:12px;box-shadow:none}
+:root[data-ds="figma"] .tr.th{background:#F7F8FA!important;border-bottom:1px solid #EBEDF0}
+:root[data-ds="figma"] .tr.th [role="columnheader"]{color:#62666F!important}
+:root[data-ds="figma"] .tr.row{border-top-color:#EFF0F3}
+:root[data-ds="figma"] .tr.row:hover{background:#FAFAFB}
+/* status tags: red = blocked, yellow = waiting on you, everything informational is neutral gray */
+:root[data-ds="figma"] .pill.fg-red{background:var(--fg-pill-red-bg);color:var(--fg-pill-red-tx)}
+:root[data-ds="figma"] .pill.fg-amber{background:var(--fg-pill-yel-bg);color:var(--fg-pill-yel-tx)}
+:root[data-ds="figma"] :is(.pill.fg-info,.pill.fg-gray){background:var(--fg-pill-gray-bg);color:var(--fg-pill-gray-tx)}
+:root[data-ds="figma"] .fg-await{color:#8A5523}
+:root[data-ds="figma"] .fg-urg{color:#8E3B34}
+:root[data-ds="figma"] .udot{background:#3E4BAB}
+/* filter + tab controls sit on white now: lighter outline */
+:root[data-ds="figma"] #fbar :is(.dd-btn,.tsel),:root[data-ds="figma"] .apg-btn{border-color:#E1E3E8;box-shadow:none}
+:root[data-ds="figma"] .tab .cnt{background:#EDEEF1;color:#555861}
 </style>
 
 <div class="app" data-lay="C">
