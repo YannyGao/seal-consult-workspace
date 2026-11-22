@@ -52,7 +52,7 @@ const I={
 };
 /* shared gradient defs for strokes/fills */
 if(!document.getElementById("ncG"))document.body.insertAdjacentHTML("beforeend",`<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false"><defs>
-  <linearGradient id="ncG" x1="0" y1="0" x2="16" y2="16" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#5B7CFA"/><stop offset=".55" stop-color="#8B6CF6"/><stop offset="1" stop-color="#3FB3F0"/></linearGradient>
+  <linearGradient id="ncG" x1="0" y1="0" x2="16" y2="16" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#1F2328"/><stop offset="1" stop-color="#5E6470"/></linearGradient>
   <linearGradient id="ncGreen" x1="0" y1="0" x2="16" y2="16" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#1FA463"/><stop offset="1" stop-color="#14B8A6"/></linearGradient></defs></svg>`);
 
 /* one status line that swaps smoothly (icon + shimmering label), like a chain-of-thought indicator */

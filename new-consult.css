@@ -462,3 +462,68 @@ body.ncp-open{overflow:hidden}
 .nc-on .nct-k{stroke-dashoffset:0}
 .nc-on .nct-ck-ic svg{animation:nctPop .42s var(--ease)}
 @keyframes nctPop{0%{transform:scale(.8)}55%{transform:scale(1.12)}100%{transform:scale(1)}}
+
+/* =====================================================================
+   v5 — black & white to match the dashboard. Motion stays; colour goes.
+   Red/amber (problems) and green (requirement met) are kept for meaning.
+   ===================================================================== */
+.ncp,.nc-modal{--g1:#1F2328;--g2:#3F4450;--g3:#5E6470;--grad:linear-gradient(135deg,#1F2328,#3F4450);
+  --gtint:linear-gradient(135deg,#F4F5F7,#F7F8FA);--gline:#E3E5EA;--btn:#1F2328;--btn-h:#363B43;--ring:rgba(31,35,40,.08)}
+.ncp{background:#fff}
+.ncp-btn{box-shadow:0 1px 2px rgba(16,24,40,.18)}
+.ncp :focus-visible{outline-color:var(--ink)}
+.ncp-step[aria-current="step"]{border-color:var(--ink);box-shadow:none}
+.ncp-step[aria-current="step"] .nc-num{background:var(--ink)}
+.ncp-step.done .nc-num{background:var(--soft);box-shadow:inset 0 0 0 1px var(--hair)}
+.ncd.open .ncd-field{border-color:var(--ink);box-shadow:0 0 0 3px var(--ring)}
+.ncd-opt[aria-selected="true"]{background:#F2F3F5}
+.ncd mark{background:#EEF0F3}
+.ncm-thumb{box-shadow:0 1px 2px rgba(16,24,40,.08),0 0 0 1px var(--hair)}
+/* thinking: same motion, greyscale */
+.nc-think-ic{color:var(--ink2)}
+.nc-shimmer{background:linear-gradient(90deg,var(--ink2) 0%,var(--ink2) 40%,#C4C8CF 50%,var(--ink2) 60%,var(--ink2) 100%);background-size:300% 100%;-webkit-background-clip:text;background-clip:text}
+.nc-tile.nc-live::before{background:conic-gradient(from 0deg,transparent 0 62%,rgba(31,35,40,0) 66%,rgba(31,35,40,.14) 82%,rgba(31,35,40,0) 96%,transparent)}
+.nc-tile.nc-live{animation:none}
+.nci.nci-run,.nct-gen,.nco-think{border-color:var(--hair);box-shadow:0 1px 2px rgba(16,24,40,.04),0 8px 24px -16px rgba(16,24,40,.18)}
+.nci-prog i{background:var(--ink)}
+.nci-ck{background:var(--soft);box-shadow:inset 0 0 0 1px var(--hair)}
+/* chat */
+.ncc{background:#FAFAFB;border-color:var(--hair)}
+.ncc-box:focus-within{border-color:var(--ink);box-shadow:0 0 0 3px var(--ring),0 12px 28px -10px rgba(16,24,40,.12)}
+.ncc-send{background:var(--ink)}
+/* alerts: info goes neutral; warn/bad keep their colour but drop the sheen */
+.nc-alert::after,.nci-flag::after{display:none}
+.nc-alert.nc-info{background:#F6F7F9;box-shadow:inset 0 0 0 1px var(--hair);color:var(--ink)}
+.nc-info .nc-alert-ic{background:var(--ink);box-shadow:none}
+.nc-warn .nc-alert-ic,.nc-bad .nc-alert-ic{box-shadow:none}
+.nc-alert.nc-warn,.nci-flag.nc-warn,.nc-alert.nc-bad,.nci-flag.nc-bad{box-shadow:inset 0 0 0 1px rgba(0,0,0,.06)}
+.nc-alert.nc-warn,.nci-flag.nc-warn{background:#FFF8E6;box-shadow:inset 0 0 0 1px #F3E2B0}
+.nc-alert.nc-bad,.nci-flag.nc-bad{background:#FDF1F0;box-shadow:inset 0 0 0 1px #F3CFCB}
+/* on-call: flat neutral selection, no pulsing */
+.nco-it:hover{transform:none;box-shadow:none;border-color:#C9CDD4}
+.nco-it[aria-checked="true"]{background:#fff;border-color:var(--ink);box-shadow:0 0 0 1px var(--ink) inset}
+.nco-it[aria-checked="true"]::before{display:none}
+.nco-it[aria-checked="true"] .nco-rad{background:var(--ink)}
+.nco-live::after{display:none}
+.nco-st.nc-s-av{background:#ECF7F0;box-shadow:inset 0 0 0 1px #CDEBD8}
+.nco-st.nc-s-busy{background:#FFF6E5;box-shadow:inset 0 0 0 1px #F1DFB8}
+.nco-h b{background:none;-webkit-background-clip:border-box;background-clip:border-box;color:var(--ink)}
+/* suggested route */
+.nc-route{background:#fff;box-shadow:0 1px 2px rgba(16,24,40,.04),0 8px 24px -16px rgba(16,24,40,.18)}
+.nc-route::before{background:var(--hair);opacity:1;padding:1px}
+.nc-route-eyebrow{background:none;-webkit-background-clip:border-box;background-clip:border-box;color:var(--ink2)}
+.nc-route-why{border-top-color:var(--hair2)}
+.nc-route-ck{box-shadow:inset 0 0 0 1px var(--hair)}
+/* template */
+.nct-f input:focus,.nct-f textarea:focus{border-color:var(--ink);box-shadow:0 0 0 3px var(--ring)}
+.nct-f.nc-fill input,.nct-f.nc-fill textarea{background:#F6F7F9;border-color:#D5D8DE}
+.nct-aside .nct-cl{background:#fff;box-shadow:inset 0 0 0 1px var(--hair),0 8px 24px -18px rgba(16,24,40,.18)}
+.nct-cl-bar{background:var(--hair2)}
+.nct-cl-bar i{background:var(--ink)}
+/* review sheet: dark bubble on a light thread */
+.nc-modal-bd{background:rgba(16,24,40,.32)}
+.nc-sheet{box-shadow:0 2px 4px rgba(16,24,40,.06),0 32px 64px -20px rgba(16,24,40,.32)}
+.nc-phone{background:#F7F8FA;box-shadow:inset 0 0 0 1px var(--hair,#E6E8EC)}
+.nc-phone-to{border-bottom-color:#ECEEF1}
+.nc-bubble{background:#1F2328;box-shadow:0 8px 20px -12px rgba(16,24,40,.45)}
+.nc-modal .ncp-btn{box-shadow:0 1px 2px rgba(16,24,40,.18)}
