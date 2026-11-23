@@ -141,7 +141,8 @@ function recordsFor(k){
   else r.push({id:"test",icon:"fDoc",testing:true,title:c.testing.split(":")[0].replace(/\s*·.*$/,"").replace(/\s*\(.*\)/,"").trim()+" report",src:/outside|El Camino|PAMF/i.test(c.testing)?"Outside record":"Epic · Cardiology",date:(/\(([^)]*)\)/.exec(c.testing)||[,""])[1].split(", ").pop()||"",body:`<p>${esc(c.testing)}.</p>`});
   r.push({id:"hp",icon:"fDoc",title:"Admission H&P",src:"Epic · Hospital Medicine",date:"This admission",body:`<dl class="nc-doc-dl"><dt>Patient</dt><dd>${esc(p.name)} · ${c.age} ${c.sex} · ${esc(p.room)}</dd><dt>Admitted for</dt><dd>${esc(c.adm)}</dd><dt>History</dt><dd>${esc(c.hx)}</dd><dt>Cardiologist</dt><dd>${esc(c.miss.cardio?"None on file":c.cardio)}</dd></dl>`});
   r.push({id:"meds",icon:"fPill",title:"Medication list",src:"Epic · Pharmacy",date:"Today",body:`<ul class="nc-doc-ul">${c.meds.split(/,\s*/).map(m=>`<li>${esc(m)}</li>`).join("")}</ul>`});
-  return r.map(x=>({...x,on:!x.gap}));
+  const want=x=>["ecg","labs","test"].includes(x.id)||(x.id==="tele"&&!/no events|no arrhythmia|^normal|^sinus rhythm$/i.test(c.tele));
+  return r.map(x=>({...x,on:!x.gap&&want(x)}));
 }
 
 /* ---------- routes (guideline pagers) and synthetic on-call roster ---------- */
@@ -599,15 +600,17 @@ function paint3(){
   const fld=(k,label,req,cls,ta,s)=>`<div class="nct-f ${cls||""}" data-nck="${k}"><label for="f-${k}">${label}${req?" <i>*</i>":""}</label>${ta?`<textarea id="f-${k}" rows="${ta}"${req?" data-ncreq":""}></textarea>`:`<input id="f-${k}" type="text"${req?" data-ncreq":""}>`}${s?src(s):""}</div>`;
   const p=PT[NC.pt],cc=CHART[NC.pt],q0=(NC.mode==="pick"?NC.pickQ:NC.question)||"";
   const risk=cc.risk,u0=NC.unstable?"Unstable":"";
-  const grp=(id,t,sub,body,cls)=>`<section class="nct-sec ncg ${cls||""}" aria-labelledby="${id}"><div class="nct-sh"><span id="${id}">${t}</span>${sub?`<span class="nct-sh-sub">${sub}</span>`:""}</div><div class="nct-body">${body}</div></section>`;
+  const grp=(id,n,t,sub,body,cls)=>`<section class="nct-sec ncg ${cls||""}" aria-labelledby="${id}"><div class="nct-sh"><span class="nc-num">${n}</span><span id="${id}">${t}</span>${sub?`<span class="nct-sh-sub">${sub}</span>`:""}</div><div class="nct-body">${body}</div></section>`;
   pane.innerHTML=`<div class="nct-grid nc-predraft"><div class="nct-main">
     <div class="ncq-head">
       <div class="ncq-to">${av(NC.clin,32)}<div class="ncq-who"><small>Page to</small><b>${esc(NC.clin)}</b><span>${esc(R.name)} · ${esc(pagerText(R))}</span></div></div>
-      <div class="ncq-meta"><div class="ncq-row"><b>${esc(p.name)}</b><span>${cc.age}${esc(cc.sex)} · MRN ${esc(p.mrn)} · Rm ${esc(p.room)}</span><button type="button" class="nc-link" data-ncgo="1">Change</button></div>
-        <div class="ncq-row ncq-sub"><label for="f-cb">Callback</label><input id="f-cb" class="ncq-cb" type="text" data-ncreq aria-label="Callback number"><span>· ${esc(ME)}</span></div></div>
     </div>
-    <div hidden>${fld("name","Patient name",1)}${fld("mrn","MRN",1)}${fld("room","Room",1)}${fld("team","Primary team",1)}${fld("req","Requester",1)}${fld("at","Requested",1)}${fld("need","Needed by",0)}${fld("question","Consult question",1,"",3)}</div>
-    ${grp("ncgReq","Your request","",`
+    <div hidden>${fld("question","Consult question",1,"",3)}</div>
+    ${grp("ncgPt",1,"Patient and requester","",`
+        ${fld("name","Patient name",1,"nc-s3 nc-lock")}${fld("mrn","MRN",1,"nc-s2 nc-lock")}${fld("room","Room",1,"nc-s1 nc-lock")}
+        ${fld("team","Primary team",1,"nc-s3")}${fld("req","Requester name and role",1,"nc-s3")}
+        ${fld("cb","Callback number",1,"nc-s2")}${fld("at","Requested date and time",1,"nc-s2")}${fld("need","Needed by",0,"nc-s2")}`)}
+    ${grp("ncgReq",2,"Your request","",`
       <div class="nct-f" data-nck="question"><label for="ncqIn">What’s your concern, and what do you need from cardiology? <i>*</i></label>
         <textarea id="ncqIn" rows="3" aria-describedby="ncqHint" placeholder="What’s changed, what you’ve tried, and the decision you need help with"></textarea>
         <p class="ncq-hint" id="ncqHint" aria-live="polite"></p></div>
@@ -617,15 +620,16 @@ function paint3(){
         <div id="urgNote"></div></div>`,"ncg-req")}
     <div id="genWrap"></div>
     <div id="secs" hidden>
-      ${grp("ncgAi","Drafted for you","AI-written from the chart · review before sending",`
+      ${grp("ncgAi",3,"Drafted for you","AI-written from the chart · review before sending",`
         ${fld("summary","One-line summary",1,"",2,"Drafted from the chart")}
         ${fld("history","Hospital course and what’s been tried",0,"",2,"Drafted from the chart")}`,"ncg-ai")}
-      ${grp("ncgChart","From the chart","Copied from the record",`
+      ${grp("ncgChart",4,"From the chart","Copied from the record",`
         ${fld("cardio","Cardiac history and cardiologist",1,"",2,"From the chart")}
         ${fld("meds","Medications",0,"",2,"From the chart")}
         ${fld("labs","ECG, telemetry and cardiac labs",1,"",3,"From the chart")}
-        ${fld("testing","Recent cardiac testing (Stanford or outside)",0,"",2,"From the chart")}
-        <div class="nct-f"><label>Records sent as files</label><ul class="nct-recs" id="ncRecs"></ul></div>`,"ncg-chart")}
+        ${fld("testing","Recent cardiac testing (Stanford or outside)",0,"",2,"From the chart")}`,"ncg-chart")}
+      <section class="nct-sec ncg"><div class="nct-sh"><span class="nc-num">5</span>Chart records<span class="nct-sh-sub">Highlighted for the consultant, who can also open the full chart</span></div><ul class="nct-recs" id="ncRecs"></ul>
+        <div class="nct-addf"><button type="button" class="ncp-btn nc-ghost nc-sm" id="ncAddF">${I.upload}Add file or photo</button><span>Saved to ${esc(p.name.split(" ")[0])}’s chart and attached to this consult.</span><input type="file" id="ncAddIn" accept="image/*,.pdf" multiple hidden></div></section>
     </div></div>
     <aside class="nct-aside" aria-label="Specialty checklist" hidden><div class="nct-cl"><div class="nct-cl-h"><h3>Specialty checklist</h3><span class="nct-cl-n" id="ncCkN">0/6</span></div><div class="nct-cl-bar"><i id="ncCkBar"></i></div><p>Updates as the request fills in and as you edit.</p><ul class="nct-ck" id="ncCk"></ul></div></aside></div>`;
   bindChip();
@@ -637,7 +641,7 @@ function paint3(){
   qIn.addEventListener("blur",showHint);
   const key=`${NC.pt}|${NC.route}|${NC.clin}`,restore=NC.draft&&NC.draft.key===key&&NC.draft.qsrc===q0?NC.draft:null;
   const urgV=()=>pane.querySelector("input[name=ncurg]:checked")?.value;
-  pane.querySelector("#f-cb").value=CALLBACK;
+  {const f0=buildFields();["name","mrn","room","team","req","cb","at","need"].forEach(k=>{const el=pane.querySelector("#f-"+k);if(el)el.value=f0[k]||""});pane.querySelectorAll(".nc-lock input").forEach(i=>{i.readOnly=true;i.title="From the patient’s chart"})}
   pane.querySelectorAll("input[name=ncurg]").forEach(el=>el.addEventListener("change",()=>{urgNote();if(drafted())summary3();else preFoot()}));
   if(urgV())urgNote();
   const preFoot=()=>{const ready=qIn.value.trim()&&urgV();actions(ready?"":!qIn.value.trim()?"Write your question to draft the request.":"Choose an urgency to draft the request.",`<button type="button" class="ncp-btn nc-ghost" id="b3">Back</button><button type="button" class="ncp-btn" id="ncqGo"${ready?"":" disabled"}>Draft request</button>`);
@@ -657,7 +661,7 @@ function paint3(){
     if(restore)pane.querySelectorAll(".nct-sec").forEach(x=>x.style.animation="none");
     const rad=restore?restore.radios:{};
     Object.entries(rad).forEach(([n,v])=>{const r=pane.querySelector(`input[name=${n}][value="${v}"]`);if(r)r.checked=true});
-    if(!restore||!NC.recs||NC.recsPt!==NC.pt){NC.recs=recordsFor(NC.pt);NC.recsPt=NC.pt}renderRecs();
+    if(!restore||!NC.recs||NC.recsPt!==NC.pt){NC.recs=recordsFor(NC.pt);NC.recsPt=NC.pt}renderRecs();bindAddFile();
     urgNote();summary3();NC.genQ=restore?restore.genQ:f.question;pane.querySelectorAll(".nc-lock input").forEach(i=>{i.readOnly=true;i.title="From the patient’s chart"});
     const need={};if(c.miss.cardio)need.cardio=["Add prior cardiac history and the cardiologist, or “None known”.",`Not in the chart — ${c.miss.cardio}.`];if(c.miss.testing)need.testing=["Type a summary, or upload the report in Chart records below.",`Not in the chart — ${c.miss.testing}.`];
     NC.filling=!restore;
@@ -665,6 +669,7 @@ function paint3(){
       const el=pane.querySelector("#f-"+k);if(!el||!root||NC.step!==3){NC.filling=false;return}const v=restore?restore.vals[k]:(f[k]||""),w=el.closest(".nct-f")||el.parentElement;
       if(need[k]){el.placeholder=need[k][0];const sEl=w.querySelector(".nct-src");if(sEl)sEl.remove()}
       if(restore){el.value=v??"";continue}
+      if(["name","mrn","room","team","req","cb","at","need"].includes(k))continue;
       w.classList.add("nc-fill");
       if(RM||v.length<4)el.value=v;else{const st=Math.max(2,Math.ceil(v.length/22));for(let i=0;i<=v.length;i+=st){el.value=v.slice(0,i);await sleep(14)}el.value=v}
       setTimeout(()=>w.classList.remove("nc-fill"),T(900));summary3();
@@ -678,6 +683,15 @@ function paint3(){
   }
 }
 const drafted=()=>{const x=root&&root.querySelector("#secs");return !!x&&!x.hidden};
+/* new information goes into the chart and is attached here (one source of truth) */
+function bindAddFile(){
+  const b=root&&root.querySelector("#ncAddF"),inp=root&&root.querySelector("#ncAddIn");if(!b||!inp||b.dataset.on)return;b.dataset.on="1";
+  b.onclick=()=>inp.click();
+  inp.onchange=()=>{[...inp.files].forEach(fl=>{const img=/^image\//.test(fl.type),url=URL.createObjectURL(fl);
+    NC.recs.push({id:"u"+Date.now().toString(36)+Math.random().toString(36).slice(2,5),icon:"fDoc",title:fl.name,src:"Added by you · saved to chart",date:"Today",up:true,on:true,
+      body:img?`<img src="${url}" alt="${esc(fl.name)}" style="display:block;max-width:100%;border-radius:8px">`:`<p class="nc-doc-note">Uploaded file · ${esc(fl.name)}</p>`})});
+    inp.value="";renderRecs();summary3();const ul=root.querySelector("#ncRecs");ul&&ul.lastElementChild&&ul.lastElementChild.scrollIntoView({block:"nearest"})};
+}
 function renderRecs(){
   const ul=root&&root.querySelector("#ncRecs");if(!ul)return;
   ul.innerHTML=NC.recs.map((r,i)=>r.gap?`<li class="nct-rec nct-rec-gap"><span class="nct-rec-ic nct-rec-ic-gap">!</span><div class="nct-rec-t"><b>${esc(r.title)}</b><span>Not in Epic — ${esc(r.why)}. Upload it if you have it.</span></div><button type="button" class="ncp-btn nc-ghost nc-sm" data-ncup="${i}">${I.upload}Upload file</button></li>`:

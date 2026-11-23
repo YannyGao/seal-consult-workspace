@@ -880,3 +880,8 @@ body.ncp-open .pcbtn,body.ncp-open .pc,body.ncp-open #pc{display:none!important}
 .ncq-risk{margin:8px 0 0;font-size:13px;color:var(--ink2)}
 #genWrap:not(:empty){margin-top:16px}
 #secs:not([hidden]) .ncg{margin-top:16px}
+.nct-addf{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;padding:12px 18px 16px;border-top:1px solid var(--hair2)}
+.nct-addf span{font-size:12.5px;color:var(--ink3)}
+.ncg .nct-sh .nc-num{margin-right:2px}
+#secs:not([hidden]) .ncg:first-child{margin-top:0}
+.ncg + .ncg,.ncg + #genWrap:not(:empty),#genWrap + #secs:not([hidden]){margin-top:16px}
