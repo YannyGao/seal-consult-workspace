@@ -610,7 +610,7 @@ function paint3(){
         ${fld("name","Patient name",1,"nc-s3 nc-lock")}${fld("mrn","MRN",1,"nc-s2 nc-lock")}${fld("room","Room",1,"nc-s1 nc-lock")}
         ${fld("team","Primary team",1,"nc-s3")}${fld("req","Requester name and role",1,"nc-s3")}
         ${fld("cb","Callback number",1,"nc-s2")}${fld("at","Requested date and time",1,"nc-s2")}${fld("need","Needed by",0,"nc-s2")}`)}
-    ${grp("ncgReq",2,"Your request","",`
+    ${grp("ncgReq",2,"Consult question and urgency","",`
       <div class="nct-f" data-nck="question"><label for="ncqIn">What’s your concern, and what do you need from cardiology? <i>*</i></label>
         <textarea id="ncqIn" rows="3" aria-describedby="ncqHint" placeholder="What’s changed, what you’ve tried, and the decision you need help with"></textarea>
         <p class="ncq-hint" id="ncqHint" aria-live="polite"></p></div>
@@ -620,15 +620,15 @@ function paint3(){
         <div id="urgNote"></div></div>`,"ncg-req")}
     <div id="genWrap"></div>
     <div id="secs" hidden>
-      ${grp("ncgAi",3,"Drafted for you","AI-written from the chart · review before sending",`
+      ${grp("ncgAi",3,"Clinical summary","",`
         ${fld("summary","One-line summary",1,"",2,"Drafted from the chart")}
         ${fld("history","Hospital course and what’s been tried",0,"",2,"Drafted from the chart")}`,"ncg-ai")}
-      ${grp("ncgChart",4,"From the chart","Copied from the record",`
+      ${grp("ncgChart",4,"Cardiovascular details","",`
         ${fld("cardio","Cardiac history and cardiologist",1,"",2,"From the chart")}
         ${fld("meds","Medications",0,"",2,"From the chart")}
         ${fld("labs","ECG, telemetry and cardiac labs",1,"",3,"From the chart")}
         ${fld("testing","Recent cardiac testing (Stanford or outside)",0,"",2,"From the chart")}`,"ncg-chart")}
-      <section class="nct-sec ncg"><div class="nct-sh"><span class="nc-num">5</span>Chart records<span class="nct-sh-sub">Highlighted for the consultant, who can also open the full chart</span></div><ul class="nct-recs" id="ncRecs"></ul>
+      <section class="nct-sec ncg"><div class="nct-sh"><span class="nc-num">5</span>Chart records</div><ul class="nct-recs" id="ncRecs"></ul>
         <div class="nct-addf"><button type="button" class="ncp-btn nc-ghost nc-sm" id="ncAddF">${I.upload}Add file or photo</button><span>Saved to ${esc(p.name.split(" ")[0])}’s chart and attached to this consult.</span><input type="file" id="ncAddIn" accept="image/*,.pdf" multiple hidden></div></section>
     </div></div>
     <aside class="nct-aside" aria-label="Specialty checklist" hidden><div class="nct-cl"><div class="nct-cl-h"><h3>Specialty checklist</h3><span class="nct-cl-n" id="ncCkN">0/6</span></div><div class="nct-cl-bar"><i id="ncCkBar"></i></div><p>Updates as the request fills in and as you edit.</p><ul class="nct-ck" id="ncCk"></ul></div></aside></div>`;
@@ -836,9 +836,9 @@ function pushRecord(){
     return k==="question"?"Your question":["summary","history"].includes(k)?"Drafted from the chart":"From the chart"};
   const line=(k,label)=>({label,text:val(k),src:srcOf(k)});
   const request={sentAt:time,to:NC.clin,route:R.name,groups:[
-    {title:"Your request",items:[line("question","Consult question"),{label:"Urgency",text:urg,src:null},{label:"Needed by",text:val("need"),src:null}]},
-    {title:"Drafted for you",items:[line("summary","One-line summary"),line("history","Hospital course and what’s been tried")]},
-    {title:"From the chart",items:[line("cardio","Cardiac history and cardiologist"),line("meds","Medications"),line("labs","ECG, telemetry and cardiac labs"),line("testing","Recent cardiac testing")]}]};
+    {title:"Consult question and urgency",items:[line("question","Consult question"),{label:"Urgency",text:urg,src:null},{label:"Needed by",text:val("need"),src:null}]},
+    {title:"Clinical summary",items:[line("summary","One-line summary"),line("history","Hospital course and what’s been tried")]},
+    {title:"Cardiovascular details",items:[line("cardio","Cardiac history and cardiologist"),line("meds","Medications"),line("labs","ECG, telemetry and cardiac labs"),line("testing","Recent cardiac testing")]}]};
   C.push({id,request,pt:NC.pt,svc:"Cardiology",who:NC.clin,whoRole:R.name,urg:urg==="Unstable"?"Emergent":urg,emergent:urg==="Unstable",reason,ordered:time,question:q,requester,callback,
     status:"paged",time,note:`Page sent to ${R.name}${isPager(R.pager)?" (pager "+R.pager+")":""} for ${NC.clin}. No acknowledgement yet.`,
     events:[[time,"Order created",`SEAL consult request · ${files.length} chart record${files.length===1?"":"s"} attached`,"ok"],[time,"Paged",`${R.name}${isPager(R.pager)?" · pager "+R.pager:""} · ${NC.clin}`,"blue"]]});
