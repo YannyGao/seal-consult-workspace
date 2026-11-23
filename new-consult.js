@@ -172,27 +172,21 @@ const TOPICS=[
   {g:"Conditions",items:[["acs","ACS / MI / CAD"],["hf","Heart failure"],["arr","Tachy- or bradyarrhythmia"],["peri","Pericarditis / effusion / tamponade"],["myo","Myocarditis"],["valve","Valvular heart disease"],["onc","Cardio-oncology"]]}
 ];
 const TOPIC_LABEL=Object.fromEntries(TOPICS.flatMap(g=>g.items));
-/* Question starters per topic. Demo wording written for SEAL, not taken from the guideline. Inserted only when clicked. */
-const TOPIC_STARTERS={
-  chest:["Is this chest pain cardiac?","Is further ischemic workup needed?"],
-  dysp:["Is there a cardiac cause for the dyspnea?","Should we get an echo?"],
-  palp:["What rhythm monitoring do you recommend?","Does this need rate or rhythm control?"],
-  sync:["Is there a cardiac cause for the syncope?","Is inpatient monitoring or an echo needed?"],
-  vol:["How should we adjust diuresis?","Is this volume overload cardiac?"],
-  acs:["Is this ACS or demand ischemia?","Does the patient need ischemic evaluation or cath?","How should we manage antithrombotics?"],
-  hf:["How should we adjust diuresis?","Which guideline-directed therapy should we start or hold?"],
-  arr:["Rate or rhythm control?","Does this need anticoagulation?","Is a pacemaker evaluation needed?"],
-  peri:["Is there tamponade physiology?","Does the effusion need drainage?","How should we treat pericarditis?"],
-  myo:["Is this myocarditis?","What workup do you recommend?"],
-  valve:["Does this valve disease need inpatient intervention?","What imaging do you recommend?"],
-  onc:["Is it safe to continue this cancer therapy?","What cardiac monitoring do you recommend?"]
-};
+/* Chart facts the clinician can drop into their question, with real values and where each came from */
+function chartFacts(c){
+  const out=[];
+  (c.labs||"").split(" · ").forEach(x=>x.trim()&&out.push({t:x.trim(),src:"Labs"}));
+  const [ecgT,ecgF]=(c.ecg||"").split(" · ");if(ecgF)out.push({t:"ECG: "+ecgF.trim(),src:"ECG · "+ecgT.trim()});
+  if(c.tele&&ABN_RE.test(c.tele))out.push({t:"Tele: "+c.tele,src:"Telemetry"});
+  return out.slice(0,5);
+}
 /* Tips quoted closely from the Cardiovascular Medicine consult guidelines one-pager (Lena). */
 const Q_FINDING=/troponin|\btrop\b|\becg\b|\bekg\b|telemetry|\btele\b|t-wave|st (elevation|depression)|\bqtc?\b/i;
 const Q_AVOID=/follow[- ]?up|outpatient|\bclinic\b|discharge|\bdispo|transfer/i;
 function qTips(q){
-  const t=(q||"").trim(),find=Q_FINDING.test(t),asks=/\?|\b(should|whether|recommend|advise|is (this|it|there)|do(es)? (he|she|they|the patient))\b/i.test(t);
+  const t=(q||"").trim(),find=Q_FINDING.test(t),asks=/\?|\b(should|whether|recommend|recs?|advise|help|need|eval(uate|uation)?|manage(ment)?|workup|is (this|it|there)|do(es)? (he|she|they|the patient))\b/i.test(t);
   return [
+    {s:!t?"na":asks?"ok":"warn",t:"Include the consult question: what you need cardiology to decide or advise on.",w:"You’ve described the concern. Add what you need: workup, management advice or a procedure decision."},
     {s:!find?"na":asks?"ok":"warn",t:"Elevated troponin, ECG and telemetry abnormalities should come with a clinical question.",w:"You mention a finding. Add what you want answered about it."},
     {s:Q_AVOID.test(t)?"warn":"na",t:"Admissions, transfers, disposition, outpatient follow-up and non-urgent discharge questions don’t go to the consult team.",w:"This sounds like follow-up, discharge or a transfer. Check that it needs an inpatient consult."},
     {s:"na",t:"Limit non-urgent questions (scheduling, non-urgent echo or cath) between 10 PM and 7 AM, and Tuesdays 7:30–9 AM."}];
@@ -452,14 +446,15 @@ function paintPickQ(){
   const box=root&&root.querySelector("#pickQ");if(!box)return;
   if(!NC.route||!NC.topic||NC.route==="adm"){box.innerHTML="";return}
   if(!box.firstChild){
-    const st=TOPIC_STARTERS[NC.topic]||[];
-    box.innerHTML=`<div class="npq"><label class="ncp-lbl" for="npqIn">What do you need from the consultant? <i class="npq-req">*</i></label>
-      <textarea id="npqIn" rows="3" aria-describedby="npqTips" placeholder="Write the specific question you want answered"></textarea>
-      ${st.length?`<div class="npq-st" role="group" aria-label="Question starters"><span class="npq-stl">Start from</span>${st.map(x=>`<button type="button" class="ncc-ex" data-npq="${esc(x)}">${esc(x)}</button>`).join("")}</div>`:""}
+    const st=chartFacts(CHART[NC.pt]);
+    box.innerHTML=`<div class="npq"><label class="ncp-lbl" for="npqIn">What’s your concern, and what do you need from cardiology? <i class="npq-req">*</i></label>
+      <textarea id="npqIn" rows="3" aria-describedby="npqTips" placeholder="e.g. New chest pain and SOB, trop 34 → 91, concern for NSTEMI. Need help with ischemic workup and anticoagulation."></textarea>
+      <p class="npq-note">Name, MRN, history and your callback are added from the chart.</p>
+      ${st.length?`<div class="npq-st" role="group" aria-label="Add from chart"><span class="npq-stl">Add from chart</span>${st.map(x=>`<button type="button" class="ncc-ex" data-npq="${esc(x.t)}" title="From ${esc(x.src)}" aria-label="Add ${esc(x.t)} (from ${esc(x.src)})">${esc(x.t)}</button>`).join("")}</div>`:""}
       <div class="npq-tips" id="npqTips"><div class="npq-th">From the Cardiology consult guidelines</div><ul></ul></div></div>`;
     const ta=box.querySelector("#npqIn");ta.value=NC.pickQ||"";
     ta.oninput=()=>{NC.pickQ=ta.value;paintTips();act2()};
-    box.querySelectorAll("[data-npq]").forEach(b=>b.onclick=()=>{const v=ta.value.trim();ta.value=v?v+" "+b.dataset.npq:b.dataset.npq;NC.pickQ=ta.value;ta.focus();ta.setSelectionRange(ta.value.length,ta.value.length);paintTips();act2()});
+    box.querySelectorAll("[data-npq]").forEach(b=>b.onclick=()=>{const v=ta.value.trim();ta.value=v?v.replace(/[.,;]?$/,", ")+b.dataset.npq:b.dataset.npq;NC.pickQ=ta.value;ta.focus();ta.setSelectionRange(ta.value.length,ta.value.length);paintTips();act2()});
   }
   paintTips();
 }
@@ -744,7 +739,7 @@ function ckItems(){
     {t:"Prior cardiac history and the patient’s cardiologist are identified.",miss:empty("cardio")?[["cardio",c.miss.cardio?`Not in the chart — ${c.miss.cardio}. Add it, or write “None known”.`:"Add prior cardiac history and the cardiologist, or “None known”."]]:[]},
     {t:"Updated ECG and pertinent cardiac laboratory trends are available or pending.",miss:[...(ecg?[]:[["ecg","Mark whether an updated ECG is available."]]),...(empty("labs")?[["labs","Add pertinent cardiac labs, or “Pending”."]]:[])]},
     {t:"Recent Stanford or outside cardiac testing is summarized.",miss:empty("testing")?[["testing",c.miss.testing?`Not in the chart — ${c.miss.testing}. Summarize it, upload the report below, or write “None”.`:"Summarize recent testing, or write “None”."]]:[]},
-    {t:"Troponin, ECG, or telemetry abnormalities are linked to a clinical question.",miss:abn&&q&&!/\?/.test(q)?[["question",`This chart has an abnormal finding${c.risk?" ("+c.risk+")":""}. Ask what you want answered about it.`]]:[]},
+    {t:"Troponin, ECG, or telemetry abnormalities are linked to a clinical question.",miss:abn&&q&&qTips(q)[0].s!=="ok"?[["question",`This chart has an abnormal finding${c.risk?" ("+c.risk+")":""}. Ask what you want answered about it.`]]:[]},
     {t:"The correct general, admission, or subspecialty cardiology route is selected.",miss:[]}
   ];
 }
@@ -790,7 +785,7 @@ function openReview(){
   const uLabel=urg==="Unstable"?"Unstable · RRT/code called":urg;
   const m=document.createElement("div");m.className="nc-modal";m.setAttribute("role","dialog");m.setAttribute("aria-modal","true");m.setAttribute("aria-labelledby","ncRvT");
   const att=(NC.recs||[]).filter(r=>r.on&&!r.gap);
-  const pageText=[`New consult — ${R.name}`,`${p.name} · MRN ${p.mrn} · Rm ${p.room}`,"",`Q: ${val("question")}`,"",val("summary"),"",`Urgency: ${uLabel}${urg!=="Routine"?" · needed "+(val("need")||"now").toLowerCase():""}`,`Callback ${val("cb")} · ${reqName}`]
+  const pageText=[`New consult — ${R.name}`,`${p.name} · MRN ${p.mrn} · Rm ${p.room}`,"",val("summary"),"",`Q: ${val("question")}`,"",`Urgency: ${uLabel}${urg!=="Routine"?" · needed "+(val("need")||"now").toLowerCase():""}`,`Callback ${val("cb")} · ${reqName}`]
     .concat(att.length?[`Attached: ${att.length} chart record${att.length===1?"":"s"}`]:[]).join("\n");
   m.innerHTML=`<div class="nc-modal-bd"></div><div class="nc-sheet nc-rv">
     <div class="nc-sheet-h"><div><h2 id="ncRvT">Review page</h2><p>This is what ${esc(NC.clin)} will receive.</p></div><button type="button" class="nc-x" data-ncclose aria-label="Close">${I.x}</button></div>
