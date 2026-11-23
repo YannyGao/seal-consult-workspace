@@ -403,7 +403,7 @@ const rowHTML=(s,c)=>{const g=gapOf(s,c);return g?`<div class="nci-row nci-gap">
 const gapCount=c=>IMPORT.filter(s=>gapOf(s,c)).length;
 const doneText=c=>{const g=gapCount(c);return `${IMPORT.length} records checked`+(g?" · some outside records aren’t in Epic":" · ready to use in the request")};
 const flagHTML=c=>c.flag?`<div class="nci-flag nc-${c.flag.t}"><span class="nc-alert-ic">${I.warn}</span><span>${esc(c.flag.x)}</span></div>`:"";
-function existingOf(k){return C.filter(x=>x.pt===k&&x.svc==="Cardiology"&&!x.archived&&x.status!=="done")}
+function existingOf(k){return C.filter(x=>x.pt===k&&(x.dept||x.svc)==="Cardiology"&&!x.archived&&x.status!=="done")}
 function dupHTML(){const ex=existingOf(NC.pt);if(!ex.length)return "";const x=ex[ex.length-1],st={paged:"Paged",accepted:"Accepted",info:"Information requested",infoupd:"Information updated",recs:"Recommendations recorded",failed:"Page failed",redirected:"Redirection requested",redirsent:"Page submitted"}[x.status]||x.status;
   const more=ex.length>1?` (+${ex.length-1} more)`:"";
   return `<div class="nc-alert nc-info nc-dup" style="margin-top:16px"><span class="nc-alert-ic">${I.info}</span><div class="nc-dup-t">${esc(PT[NC.pt].name)} also has an active Cardiology consult${more} — ${esc(x.who||"consultant not confirmed")} · ${esc(st)} ${fmt(x.time)}, “${esc(x.reason)}”. If it’s the same question, you can message that consultant instead. <button type="button" class="nc-link nc-dup-open" data-ncopen="${esc(x.id)}">View that consult</button></div><button type="button" class="nc-x nc-dup-x" data-ncdupok aria-label="Dismiss">${I.x}</button></div>`}
@@ -645,7 +645,7 @@ function paint3(){
   const grp=(id,n,t,sub,body,cls)=>`<section class="nct-sec ncg ${cls||""}" aria-labelledby="${id}"><div class="nct-sh"><span class="nc-num">${n}</span><span id="${id}">${t}</span>${sub?`<span class="nct-sh-sub">${sub}</span>`:""}</div><div class="nct-body">${body}</div></section>`;
   pane.innerHTML=`<div class="nct-grid nc-predraft"><div class="nct-main">
     <div class="ncq-head">
-      <div class="ncq-to">${av(NC.clin,32)}<div class="ncq-who"><small>Page to</small><b>${esc(NC.clin)}</b><span>${esc(R.name)} · ${esc(pagerText(R))}</span></div></div>
+      <div class="ncq-to">${av(NC.clin,48)}<div class="ncq-who"><small>Page to</small><b>${esc(NC.clin)}</b><span>${esc(R.name)} · ${esc(pagerText(R))}</span></div></div>
     </div>
     <div hidden><textarea id="f-question" data-ncreq aria-hidden="true" tabindex="-1"></textarea></div>
     ${grp("ncgPt",1,"Patient and requester","",`
@@ -844,7 +844,7 @@ function openReview(){
   m.innerHTML=`<div class="nc-modal-bd"></div><div class="nc-sheet nc-rv">
     <div class="nc-sheet-h"><div><h2 id="ncRvT">Review page</h2><p>This is what ${esc(NC.clin)} will receive.</p></div><button type="button" class="nc-x" data-ncclose aria-label="Close">${I.x}</button></div>
     <div class="nc-phone">
-      <div class="nc-phone-to">${av(NC.clin,34)}<div><b>${esc(NC.clin)}</b><span>${esc(role?role+" · ":"")}${esc(R.name)}</span></div><span class="nc-to-pg">${esc(pagerText(R))}</span></div>
+      <div class="nc-phone-to">${av(NC.clin,40)}<div><b>${esc(NC.clin)}</b><span>${esc(role?role+" · ":"")}${esc(R.name)}</span></div><span class="nc-to-pg">${esc(pagerText(R))}</span></div>
       <div class="nc-thread"><div class="nc-stamp">Today ${fmtNow()}</div>
         <div class="nc-bubble nc-bubble-text">${esc(pageText)}</div>
       </div>
@@ -885,7 +885,7 @@ function pushRecord(){
     {title:"Consult question and urgency",items:[line("question","Consult question"),{label:"Urgency",text:urg,src:null},{label:"Needed by",text:val("need"),src:null}]},
     {title:"Clinical summary",items:[line("summary","One-line summary"),line("history","Hospital course and what’s been tried")]},
     {title:"Cardiovascular details",items:[line("cardio","Cardiac history and cardiologist"),line("meds","Medications"),line("labs","ECG, telemetry and cardiac labs"),line("testing","Recent cardiac testing")]}]};
-  C.push({id,request,pt:NC.pt,svc:"Cardiology",who:NC.clin,whoRole:R.name,urg:urg==="Unstable"?"Emergent":urg,emergent:urg==="Unstable",reason,ordered:time,question:q,requester,callback,
+  C.push({id,request,pt:NC.pt,svc:R.name,dept:"Cardiology",who:NC.clin,whoRole:R.name,urg:urg==="Unstable"?"Emergent":urg,emergent:urg==="Unstable",reason,ordered:time,question:q,requester,callback,
     status:"paged",time,note:`Page sent to ${R.name}${isPager(R.pager)?" (pager "+R.pager+")":""} for ${NC.clin}. No acknowledgement yet.`,
     events:[[time,"Order created",`SEAL consult request · ${files.length} chart record${files.length===1?"":"s"} attached`,"ok"],[time,"Paged",`${R.name}${isPager(R.pager)?" · pager "+R.pager:""} · ${NC.clin}`,"blue"]]});
   return {id,time,name:PT[NC.pt].name,route:R.name,clin:NC.clin};
