@@ -129,6 +129,15 @@ const NEED_BY={Routine:"Today",Urgent:"Within 1 hour",Unstable:"Now — emergent
 const EMERG=["ic","cicu","echo","dev"];
 const unitOf=room=>UNIT[room]||"7 East";
 /* raw chart records the consultant receives as files (synthetic) */
+/* one timestamp format for every chart record: "Today, 6:40 AM" · "Yesterday, 8:15 PM" · "Mar 14, 2025, 10:20 AM" (synthetic) */
+const MON=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+function recStamp(x,c){
+  if(x.gap)return x.date;
+  if(x.id==="ecg"){const m=/Today (\d\d:\d\d)/.exec(c.ecg||"");return `Today, ${m?fmt(m[1]):"6:40 AM"}`}
+  const fixed={labs:"Today, 5:42 AM",tele:"Today, 7:00 AM",hp:"Yesterday, 8:15 PM",meds:"Today, 6:05 AM"};if(fixed[x.id])return fixed[x.id];
+  if(x.id==="test"){const d=String(x.date||"");let m=/^(\d\d)\/(\d{4})$/.exec(d);if(m)return `${MON[+m[1]-1]} 14, ${m[2]}, 10:20 AM`;m=/(\d{4})/.exec(d);if(m)return `Jun 3, ${m[1]}, 2:15 PM`}
+  return x.date;
+}
 const tm=(t,d)=>{const m=/Today (\d\d:\d\d)/.exec(t||"");return m?`Today ${fmt(m[1])}`:d};
 const ecgTrace=()=>{let d="M0 40";for(let i=0;i<6;i++){const x=i*70;d+=` L${x+10} 40 L${x+16} 36 L${x+22} 40 L${x+30} 40 L${x+33} 46 L${x+37} 8 L${x+41} 52 L${x+45} 40 L${x+54} 40 L${x+60} 33 L${x+66} 40`}return `<svg class="nc-doc-trace" viewBox="0 0 420 60" preserveAspectRatio="none" aria-hidden="true"><path d="${d}"/></svg>`};
 function recordsFor(k){
@@ -142,7 +151,7 @@ function recordsFor(k){
   r.push({id:"hp",icon:"fDoc",title:"Admission H&P",src:"Epic · Hospital Medicine",date:"This admission",body:`<dl class="nc-doc-dl"><dt>Patient</dt><dd>${esc(p.name)} · ${c.age} ${c.sex} · ${esc(p.room)}</dd><dt>Admitted for</dt><dd>${esc(c.adm)}</dd><dt>History</dt><dd>${esc(c.hx)}</dd><dt>Cardiologist</dt><dd>${esc(c.miss.cardio?"None on file":c.cardio)}</dd></dl>`});
   r.push({id:"meds",icon:"fPill",title:"Medication list",src:"Epic · Pharmacy",date:"Today",body:`<ul class="nc-doc-ul">${c.meds.split(/,\s*/).map(m=>`<li>${esc(m)}</li>`).join("")}</ul>`});
   const want=x=>["ecg","labs","test"].includes(x.id)||(x.id==="tele"&&!/no events|no arrhythmia|^normal|^sinus rhythm$/i.test(c.tele));
-  return r.map(x=>({...x,on:!x.gap&&want(x)}));
+  return r.map(x=>({...x,date:recStamp(x,c),on:!x.gap&&want(x)}));
 }
 
 /* chips and the Chart records checkboxes always agree: cited records start attached; an unattached one shows as such */
@@ -154,7 +163,7 @@ function syncChips(){if(!root||!NC.recs)return;root.querySelectorAll(".nc-chip[d
 /* which chart records each drafted field comes from (shown as chips that open the record) */
 const SRC_OF={summary:["hp"],history:["hp"],cardio:["hp"],meds:["meds"],labs:["ecg","tele","labs"],testing:["test"]};
 const AI_FIELDS=["summary","history"];
-const chipName=r=>r.id==="ecg"?`ECG${/\d/.test(r.date||"")?" · "+String(r.date).replace(/^Today\s*/,""):""}`:r.id==="labs"?"Cardiac labs":r.id==="tele"?"Telemetry":r.title;
+const chipName=r=>r.id==="ecg"?`ECG${/\d/.test(r.date||"")?" · "+String(r.date).replace(/^Today,?\s*/,""):""}`:r.id==="labs"?"Cardiac labs":r.id==="tele"?"Telemetry":r.title;
 document.addEventListener("click",e=>{const b=e.target.closest&&e.target.closest("[data-ncsrcdoc]");if(!b||!root)return;e.preventDefault();
   const id=b.dataset.ncsrcdoc,r=(NC.recs||[]).find(x=>x.id===id)||recordsFor(NC.pt).find(x=>x.id===id);if(r)openDoc(r)});
 /* ---------- routes (guideline pagers) and synthetic on-call roster ---------- */
@@ -716,7 +725,7 @@ function bindAddFile(){
   const b=root&&root.querySelector("#ncAddF"),inp=root&&root.querySelector("#ncAddIn");if(!b||!inp||b.dataset.on)return;b.dataset.on="1";
   b.onclick=()=>inp.click();
   inp.onchange=()=>{[...inp.files].forEach(fl=>{const img=/^image\//.test(fl.type),url=URL.createObjectURL(fl);
-    NC.recs.push({id:"u"+Date.now().toString(36)+Math.random().toString(36).slice(2,5),icon:"fDoc",title:fl.name,src:"Added by you · saved to chart",date:"Today",up:true,on:true,
+    NC.recs.push({id:"u"+Date.now().toString(36)+Math.random().toString(36).slice(2,5),icon:"fDoc",title:fl.name,src:"Added by you · saved to chart",date:`Today, ${fmtNow()}`,up:true,on:true,
       body:img?`<img src="${url}" alt="${esc(fl.name)}" style="display:block;max-width:100%;border-radius:8px">`:`<p class="nc-doc-note">Uploaded file · ${esc(fl.name)}</p>`})});
     inp.value="";renderRecs();summary3();const ul=root.querySelector("#ncRecs");ul&&ul.lastElementChild&&ul.lastElementChild.scrollIntoView({block:"nearest"})};
 }
@@ -732,7 +741,7 @@ function renderRecs(){
     const i=+up.dataset.ncup,r=NC.recs[i],li=up.closest(".nct-rec");
     li.innerHTML=`<span class="nct-rec-ic">${I.upload}</span><div class="nct-rec-t"><b>${esc(r.upTitle)}.pdf</b><span class="nct-up"><i></i></span></div>`;
     await sleep(T(1300));if(!root)return;
-    NC.recs[i]={id:r.id,icon:"fDoc",testing:true,title:r.upTitle,src:"Uploaded by you",date:"Today",up:true,on:true,body:`<p class="nc-doc-note">Uploaded file · ${esc(r.upTitle)}.pdf</p><p>Outside report attached by ${esc(ME)}. Original document is included as a PDF.</p>`};
+    NC.recs[i]={id:r.id,icon:"fDoc",testing:true,title:r.upTitle,src:"Uploaded by you",date:`Today, ${fmtNow()}`,up:true,on:true,body:`<p class="nc-doc-note">Uploaded file · ${esc(r.upTitle)}.pdf</p><p>Outside report attached by ${esc(ME)}. Original document is included as a PDF.</p>`};
     const tf=root.querySelector("#f-testing");if(tf&&!tf.value.trim()){tf.value=`See attached: ${r.upTitle}.`;tf.dispatchEvent(new Event("input",{bubbles:true}))}
     renderRecs();summary3();
   };

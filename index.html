@@ -2916,7 +2916,7 @@ mark.qhl{background:#E4E7EC;color:inherit;font-weight:inherit;border-radius:3px;
 
 .fl-cap-by{margin-top:2px;font-size:12.5px;line-height:18px;color:#5E6470;font-weight:400}
 </style>
-<link rel="stylesheet" href="new-consult.css?v=7">
+<link rel="stylesheet" href="new-consult.css?v=8">
 
 <div class="app" data-lay="C">
   <nav class="side" aria-label="Workspace">
@@ -3216,7 +3216,7 @@ function acardF(c){
 
 /* ---------- DS mono pass (DESIGN.md §3): standalone system values in Geist Mono, never inside prose, messages or buttons ---------- */
 const DS_MONO_RE=/\b\d{1,2}:\d{2}\s?(?:AM|PM)\b|\bSYN-\d{4,}\b|\b\d{3}-\d{3}-\d{4}\b|\b\d{3,4}-[A-Z]\b|\b\d+(?:\.\d+)?\s?(?:KB|MB)\b/g;
-const DS_MONO_SKIP=".bubble,.fg-bub,.mb,p,.stext,.mtext,.f8-qt,.pg-q,.tl-q,.tl-p,textarea,input,select,option,button,a,script,style,.ds-mono,.fg-tm,.fg-time,.fg-room,.fg-band,.idline,.cnt,.apg-rng,.pcpanel,.pcbtn,label,[contenteditable]";
+const DS_MONO_SKIP=".ncp,.nc-modal,.bubble,.fg-bub,.mb,p,.stext,.mtext,.f8-qt,.pg-q,.tl-q,.tl-p,textarea,input,select,option,button,a,script,style,.ds-mono,.fg-tm,.fg-time,.fg-room,.fg-band,.idline,.cnt,.apg-rng,.pcpanel,.pcbtn,label,[contenteditable]";
 let dsMonoBusy=false;
 /* Mono pass runs in the Figma version, and in Hybrid when Prototype controls → Hybrid mono = "Times + IDs". */
 const monoOn=()=>DS==="figma"||(HYB&&document.documentElement.dataset.hmono==="data");
@@ -5316,4 +5316,4 @@ try{const o=new URLSearchParams(location.search).get("open");if(o&&byId(o))openR
 window.SEAL_BRIDGE={C,PT,av,ME,TEAM,CALLBACK,NOW,fmt,FILE_BASE,render:()=>render(),tick:()=>"12:"+String(sendMin++).padStart(2,"0")};
 })();
 </script>
-<script src="new-consult.js?v=7"></script>
+<script src="new-consult.js?v=8"></script>

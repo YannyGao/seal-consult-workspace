@@ -813,3 +813,5 @@ body.ncp-open{overflow:hidden}
 /* Prototype controls stay reachable inside New consult (top right, clear of the footer) */
 body.ncp-open .pcbtn{display:inline-flex!important;top:76px;bottom:auto;right:20px;z-index:80}
 body.ncp-open .pcpanel:not([hidden]){display:flex!important;top:122px;bottom:auto;right:20px;z-index:80;max-height:calc(100vh - 140px)}
+/* New consult never uses the workboard's mono setting (times, MRNs and dates stay in the body font) */
+:root .ncp .ds-mono,:root .nc-modal .ds-mono,:root[data-hyb][data-hmono] .ncp .ds-mono,:root[data-ds="figma"] .ncp .ds-mono{font-family:inherit!important;font-size:inherit!important;font-weight:inherit!important;letter-spacing:inherit!important}
