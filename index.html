@@ -2251,6 +2251,8 @@ details:not([open]) > summary > .p2-chev{transform:rotate(-90deg)}
 .f8-qt{margin:0;font-size:17px;line-height:26px;font-weight:500;color:var(--ink)}
 .f8-ph{margin-top:12px}
 .f8-tabs{margin:0 96px 20px 0}
+.homelogo{cursor:pointer}
+.homelogo:focus-visible{outline:2px solid #1F2328;outline-offset:4px;border-radius:4px}
 /* New consult button: the original prototype blue (Taylor's Version 221) */
 .top .topnew{background:#2F5FD0!important;border-color:#2F5FD0!important;color:#fff!important}
 .top .topnew:hover{background:#2550B8!important;border-color:#2550B8!important}
@@ -5152,6 +5154,18 @@ document.addEventListener("click",e=>{
     const r=e.target.closest(ITEM);if(r)openRow(r.dataset.id,needsPanelFocus(byId(r.dataset.id)));
 });
 {const rs=$("rdLblSel");if(rs){rs.value=ST.redirected.label;rs.addEventListener("change",e=>{setRdLabel(e.target.value);render();renderPanel();if(actId)renderAct()})}}
+/* SEAL logo = home: leave New consult or any dialog/panel and go to the top of My consults */
+function goHome(){
+  const back=document.querySelector(".ncp .ncp-back");if(back)back.click();
+  if(typeof actId!=="undefined"&&actId)closeAct();
+  if(S.open)closePanelNow();
+  const rm=matchMedia("(prefers-reduced-motion: reduce)").matches?"auto":"smooth";
+  const top=()=>{[document.scrollingElement,$("main"),document.querySelector(".main")].forEach(el=>{if(el&&el.scrollTop)el.scrollTo({top:0,behavior:rm})})};
+  top();setTimeout(top,320);
+  const h=document.querySelector("h1");if(h){h.setAttribute("tabindex","-1");setTimeout(()=>h.focus({preventScroll:true}),back?340:0)}
+}
+document.querySelectorAll(".toplogo,.blogo").forEach(img=>{img.setAttribute("role","link");img.tabIndex=0;img.setAttribute("aria-label","SEAL home: My consults");img.title="My consults";img.classList.add("homelogo");
+  img.addEventListener("click",goHome);img.addEventListener("keydown",e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();goHome()}})});
 $("sort").addEventListener("change",e=>{S.sort=e.target.value;S.dir=SORT_DEF_DIR[S.sort]||"desc";render();sortSay()});
 function sortSay(){const l=$("tdlive");if(l){const d=S.dir||SORT_DEF_DIR[S.sort]||"desc";l.textContent=`Sorted by ${(SORT_SAY[S.sort]||{})[d]||S.sort}.`}}
 document.addEventListener("click",e=>{const b=e.target.closest("[data-sortkey]");if(!b)return;e.stopPropagation();
