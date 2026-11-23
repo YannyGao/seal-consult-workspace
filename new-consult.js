@@ -779,7 +779,17 @@ function pushRecord(){
   const requester=(val("req").split(" · ")[0]||ME).trim(),callback=val("cb")||CALLBACK;
   const files=(NC.recs||[]).filter(r=>r.on&&!r.gap).map((r,i)=>({key:`${id}-f${i}`,title:r.title,kind:"pdf",size:"PDF · "+(80+i*23)+" KB"}));
   FILE_BASE[id]=files;
-  C.push({id,pt:NC.pt,svc:"Cardiology",who:NC.clin,whoRole:R.name,urg:urg==="Unstable"?"Emergent":urg,emergent:urg==="Unstable",reason,ordered:time,question:q,requester,callback,
+  /* snapshot of the request exactly as sent; each line says where it came from */
+  const f=buildFields(),radio=n=>root.querySelector(`input[name=${n}]:checked`)?.value||"";
+  const srcOf=k=>{const v=val(k),o=String((k==="question"?NC.genQ:f[k])||"").trim();
+    if(!v)return null;if(!o)return "Added by you";if(v!==o)return "Edited by you";
+    return k==="question"?(NC.mode==="ask"&&NC.chat.length?"Your question":"From the topic"):"From the chart"};
+  const line=(k,label)=>({label,text:val(k),src:srcOf(k)});
+  const request={sentAt:time,to:NC.clin,route:R.name,groups:[
+    {title:"Clinical request",items:[line("summary","One-line summary"),line("question","Focused question"),line("history","Relevant history and recent change"),line("results","Pertinent results and pending tests"),line("testing","Recent cardiac testing")]},
+    {title:"Cardiovascular details",items:[{label:"PAMF patient",text:radio("ncpamf")==="yes"?"Yes":radio("ncpamf")==="no"?"No":"",src:null},{label:"Updated ECG",text:radio("ncecg")==="yes"?"Available":radio("ncecg")==="no"?"Not available":"",src:null},line("cardio","Prior cardiac history and cardiologist"),line("tele","Telemetry issue"),line("labs","Pertinent cardiac labs and trend")]},
+    {title:"Urgency and timing",items:[{label:"Urgency",text:urg,src:null},{label:"Needed by",text:val("need"),src:null}]}]};
+  C.push({id,request,pt:NC.pt,svc:"Cardiology",who:NC.clin,whoRole:R.name,urg:urg==="Unstable"?"Emergent":urg,emergent:urg==="Unstable",reason,ordered:time,question:q,requester,callback,
     status:"paged",time,note:`Page sent to ${R.name}${isPager(R.pager)?" (pager "+R.pager+")":""} for ${NC.clin}. No acknowledgement yet.`,
     events:[[time,"Order created",`SEAL consult request · ${files.length} chart record${files.length===1?"":"s"} attached`,"ok"],[time,"Paged",`${R.name}${isPager(R.pager)?" · pager "+R.pager:""} · ${NC.clin}`,"blue"]]});
   return {id,time,name:PT[NC.pt].name,route:R.name,clin:NC.clin};

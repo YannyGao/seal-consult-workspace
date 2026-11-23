@@ -2250,6 +2250,20 @@ details:not([open]) > summary > .p2-chev{transform:rotate(-90deg)}
 .f8-qk{margin:0 0 6px;font-size:12.5px;font-weight:500;color:var(--muted);text-transform:none;letter-spacing:0}
 .f8-qt{margin:0;font-size:17px;line-height:26px;font-weight:500;color:var(--ink)}
 .f8-ph{margin-top:12px}
+.f8-tabs{margin:0 96px 20px 0}
+.f8-reqlink{display:inline-block;margin-top:6px;padding:0;border:0;background:none;color:var(--ink);font:inherit;font-size:13px;font-weight:500;text-decoration:underline;text-underline-offset:3px;cursor:pointer}
+.f8-reqlink:focus-visible{outline:2px solid var(--focus);outline-offset:2px;border-radius:2px}
+.f8r-h{display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:4px 16px;margin-bottom:4px}
+.f8r-t{margin:0;font-size:16px;font-weight:600;color:var(--ink)}
+.f8r-meta{font-size:13px;color:var(--muted)}
+.f8r-g{margin-top:20px;padding-top:16px;border-top:1px solid var(--line-2)}
+.f8r-gt{margin:0 0 12px;font-size:14px;font-weight:600;color:var(--ink)}
+.f8r-dl{margin:12px 0 0;display:grid;gap:14px}
+.f8r-g .f8r-dl{margin:0}
+.f8r-f dt{font-size:12.5px;color:var(--muted);margin-bottom:3px}
+.f8r-f dd{margin:0;font-size:14px;line-height:21px;color:var(--ink);white-space:pre-wrap}
+.f8r-src{display:block;margin-top:3px;font-size:12px;color:var(--muted)}
+.f8r-none{margin:16px 0 0;font-size:13px;color:var(--muted)}
 .f8-main .mt2-sec{padding-left:0;padding-right:0;margin-top:20px;border-top:1px solid var(--line-2);padding-top:18px}
 @container (max-width:760px){
   .f8{grid-template-columns:1fr;grid-template-rows:none;grid-auto-rows:max-content;height:100%;overflow:auto}
@@ -4132,7 +4146,7 @@ function panelF(c,head,todo){
       const icon=who?av(who,28):`<span class="r-sysic${bad?" r-sysbad":""}">${/^(Order created)/.test(l)?I_RDOC:I_PAGER}</span>`;
       return `<li class="r-ev${msg?" r-ev-msg":""}${who?"":" r-ev-sys"}${isLast?" l-latest":""}" id="fev-${ev.indexOf(e)}" tabindex="-1"><span class="r-ic">${icon}</span><div class="r-body">
         <div class="r-line"><b>${esc(l)}</b><time>${fmt(t)}</time>${isLast?`<span class="l-badge mt2-latest">Latest</span>`:""}</div>
-        <div class="r-src">${esc(src)}${sub&&!syn?` · ${esc(sub)}`:""}${syn?` <span class="mt2-syn">Synthetic demo event</span>`:""}</div>${msg?`<div class="r-msg">${msg}</div>`:""}
+        <div class="r-src">${esc(src)}${sub&&!syn?` · ${esc(sub)}`:""}${syn?` <span class="mt2-syn">Synthetic demo event</span>`:""}</div>${l==="Order created"?"<!--f8-reqlink-->":""}${msg?`<div class="r-msg">${msg}</div>`:""}
         ${l==="Recommendations recorded"&&c.task&&c.task.secondary?`<div class="l-sup">${esc(c.task.secondary)}</div>`:""}
         ${isLast&&sup&&!todo&&l!=="Recommendations recorded"&&sup!==sub?`<div class="l-sup">${esc(sup)}</div>`:""}
         ${isLast&&todo?`<div class="l-act"><span>${TASKHEAD[c.status]}</span><button type="button" class="btn primary ptask-btn" data-openact="${c.id}">${esc(verbOf(c))}</button></div>`:""}</div></li>`;};
@@ -4362,8 +4376,25 @@ function panelTwo(c,head,todo){
       </dl>${arch?`<div class="f8-arch">${arch}</div>`:""}</aside>`;
   const q=`<section class="f8-q" aria-labelledby="f8-qh"><h3 class="f8-qk" id="f8-qh">Consult question</h3><p class="f8-qt">${esc(c.question)}</p>
 </section>`;
-  return `<div class="f8"><div class="f8-ctl">${ctl}</div>${ctx}<div class="f8-main">${q}${filesHTML(c)}${tl}</div></div>`;
+  const tab=S.p2Tab==="full"?"full":"ov";
+  const tabs=`<div class="f-tabs f8-tabs" role="tablist" aria-label="Consult sections">
+      <button type="button" role="tab" id="f8t-ov" aria-controls="f8p" aria-selected="${tab==="ov"}" tabindex="${tab==="ov"?0:-1}" data-p2tab="ov">Overview</button>
+      <button type="button" role="tab" id="f8t-full" aria-controls="f8p" aria-selected="${tab==="full"}" tabindex="${tab==="full"?0:-1}" data-p2tab="full">Request</button></div>`;
+  const body=tab==="ov"?`${q}${filesHTML(c)}${tl.replace("<!--f8-reqlink-->",'<button type="button" class="f8-reqlink" data-p2tab="full">View full request</button>')}`:fullRequestHTML(c);
+  return `<div class="f8"><div class="f8-ctl">${ctl}</div>${ctx}<div class="f8-main">${tabs}<div role="tabpanel" id="f8p" aria-labelledby="f8t-${tab}">${body}</div></div></div>`;
 }
+/* Request tab: the request exactly as sent (snapshot saved at send time). Read-only; nothing is inferred. */
+function fullRequestHTML(c){
+  const r=c.request;
+  const head=`<div class="f8r-h"><h3 class="f8r-t">Request as sent</h3><span class="f8r-meta">${r?`Sent ${fmt(r.sentAt)} to ${esc(r.to)} · ${esc(r.route)}`:`Sent ${fmt(c.ordered)}`}</span></div>`;
+  if(!r)return `${head}<dl class="f8r-dl"><div class="f8r-f"><dt>Consult question</dt><dd>${esc(c.question)}</dd></div></dl><p class="f8r-none">Only the consult question was recorded for this request.</p>`;
+  return head+r.groups.map(g=>`<section class="f8r-g" aria-label="${esc(g.title)}"><h4 class="f8r-gt">${esc(g.title)}</h4><dl class="f8r-dl">${g.items.map(it=>`<div class="f8r-f"><dt>${esc(it.label)}</dt><dd>${it.text?esc(it.text):'<span class="muted">Not provided</span>'}${it.src?`<span class="f8r-src">${esc(it.src)}</span>`:""}</dd></div>`).join("")}</dl></section>`).join("");
+}
+document.addEventListener("click",e=>{const t=e.target.closest&&e.target.closest("[data-p2tab]");if(!t)return;
+  S.p2Tab=t.dataset.p2tab;renderPanel();const b=document.querySelector(`[role=tab][data-p2tab="${S.p2Tab}"]`);b&&b.focus();
+  const m=document.querySelector("#panel .f8-main");if(m)m.scrollTop=0});
+document.addEventListener("keydown",e=>{const t=e.target.closest&&e.target.closest("[role=tab][data-p2tab]");if(!t||(e.key!=="ArrowRight"&&e.key!=="ArrowLeft"))return;
+  e.preventDefault();S.p2Tab=S.p2Tab==="full"?"ov":"full";renderPanel();const b=document.querySelector(`[role=tab][data-p2tab="${S.p2Tab}"]`);b&&b.focus()});
 /* keep keyboard focus inside the drawer while its backdrop is shown */
 document.addEventListener("keydown",e=>{
   if(true)return; /* v163: drawer is non-modal again (no backdrop), so no focus trap */
@@ -5010,7 +5041,7 @@ function mark(){document.querySelectorAll(ITEM).forEach(r=>r.setAttribute("aria-
 function openRow(id,toNext){
   const keep=$("main").scrollTop;
   const wasOpen=S.open&&!panel.classList.contains("p-out");clearTimeout(P_T);panel.classList.remove("p-out","p-in");shell.classList.remove("p-anim");
-  S.sel=id;S.open=true;
+  if(S.sel!==id)S.p2Tab="ov";S.sel=id;S.open=true;
   if(!wasOpen&&S.pview==="side"){panel.classList.add("p-in");shell.classList.add("p-anim");P_T=setTimeout(()=>{panel.classList.remove("p-in");shell.classList.remove("p-anim");syncResizer()},780)}
   if(RV[id]){RV[id].view=RV_OPEN===id&&hasTask(byId(id))?"review":"msg";RV[id].step=1}RV_OPEN=null;
   if(UNREAD.delete(id)){if(S.unread)KEEP.add(id);render()} /* opening marks it read */
