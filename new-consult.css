@@ -753,3 +753,45 @@ body.ncp-open .pcbtn,body.ncp-open .pc,body.ncp-open #pc{display:none!important}
 :root[data-hyb] .ncp .nct-f :is(input,textarea):focus{box-shadow:0 0 0 3px var(--ring)!important}
 :root[data-hyb] .ncp .nct-f.nc-need :is(input,textarea):focus{box-shadow:0 0 0 3px rgba(201,150,43,.15)!important}
 :root[data-hyb] .ncp .nct-f.nc-lock input:focus{box-shadow:none!important}
+
+/* =====================================================================
+   Taylor's New consult changes (route suggestion, question-first template, records, reveal)
+   ===================================================================== */
+/* step 3: header (who / patient / callback), then three groups by who is responsible */
+.nct-aside[hidden],.ncq-mirror{display:none!important}
+.nct-grid.nc-predraft{grid-template-columns:minmax(0,1fr)}
+.nct-grid.nc-predraft .nct-main{max-width:760px}
+.ncq-head{border:1px solid var(--hair);border-radius:16px;background:#fff;padding:14px 18px;margin-bottom:16px}
+.ncq-to{display:flex;align-items:center;gap:10px}
+.ncq-who{display:flex;flex-direction:column;line-height:18px}
+.ncq-who small{font-size:12px;color:var(--ink3)}
+.ncq-who b{font-size:14px;font-weight:600;color:var(--ink)}
+.ncq-who span{font-size:12.5px;color:var(--ink2)}
+.ncq-meta{padding-top:10px;display:grid;gap:6px}
+.ncq-row{display:flex;flex-wrap:wrap;align-items:center;gap:4px 10px;font-size:13.5px;color:var(--ink2)}
+.ncq-row b{font-weight:600;color:var(--ink)}
+.ncq-row .nc-link{margin-left:auto;font-size:12.5px}
+.ncq-sub{font-size:13px;color:var(--ink3)}
+.ncq-cb{width:13ch;box-sizing:content-box;height:28px;padding:0 8px;border:1px solid transparent;border-radius:8px;background:transparent;font:inherit;font-size:13px;color:var(--ink2)}
+.ncq-cb:hover{border-color:var(--hair)}
+.ncq-cb:focus{outline:0;border-color:var(--ink);background:#fff;box-shadow:0 0 0 3px rgba(31,35,40,.07)}
+.ncg .nct-sh{display:flex;flex-wrap:wrap;align-items:baseline;gap:2px 10px}
+.ncg .nct-sh-sub{margin-left:0}
+.ncq-hint{margin:8px 0 0;font-size:13px;line-height:18px;color:#8A5A00}
+.ncq-hint:empty{display:none}
+.ncq-risk{margin:8px 0 0;font-size:13px;color:var(--ink2)}
+#genWrap:not(:empty){margin-top:16px}
+#secs:not([hidden]) .ncg{margin-top:16px}
+.nct-addf{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;padding:12px 18px 16px;border-top:1px solid var(--hair2)}
+.nct-addf span{font-size:12.5px;color:var(--ink3)}
+.ncg .nct-sh .nc-num{margin-right:2px}
+#secs:not([hidden]) .ncg:first-child{margin-top:0}
+.ncg + .ncg,.ncg + #genWrap:not(:empty),#genWrap + #secs:not([hidden]){margin-top:16px}
+
+/* ---------- match the workboard: Inter (Hybrid), tabular numbers instead of mono, no blur ---------- */
+:root[data-hyb] .ncp,:root[data-hyb] .nc-modal,:root[data-hyb] .ncp-toast{--sans:"Inter",-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;--mono:"Inter",-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif}
+:root[data-hyb] .ncp-toast,:root[data-hyb] .ncp-toast-v{font-family:"Inter",-apple-system,BlinkMacSystemFont,sans-serif}
+.ncp,.nc-modal{font-variant-numeric:tabular-nums}
+.nc-modal-bd{backdrop-filter:none!important;-webkit-backdrop-filter:none!important}
+/* your answers in the chat stand out from the silver panel */
+.ncc-me{background:#E6E8ED}

@@ -141,7 +141,8 @@ function recordsFor(k){
   else r.push({id:"test",icon:"fDoc",testing:true,title:c.testing.split(":")[0].replace(/\s*·.*$/,"").replace(/\s*\(.*\)/,"").trim()+" report",src:/outside|El Camino|PAMF/i.test(c.testing)?"Outside record":"Epic · Cardiology",date:(/\(([^)]*)\)/.exec(c.testing)||[,""])[1].split(", ").pop()||"",body:`<p>${esc(c.testing)}.</p>`});
   r.push({id:"hp",icon:"fDoc",title:"Admission H&P",src:"Epic · Hospital Medicine",date:"This admission",body:`<dl class="nc-doc-dl"><dt>Patient</dt><dd>${esc(p.name)} · ${c.age} ${c.sex} · ${esc(p.room)}</dd><dt>Admitted for</dt><dd>${esc(c.adm)}</dd><dt>History</dt><dd>${esc(c.hx)}</dd><dt>Cardiologist</dt><dd>${esc(c.miss.cardio?"None on file":c.cardio)}</dd></dl>`});
   r.push({id:"meds",icon:"fPill",title:"Medication list",src:"Epic · Pharmacy",date:"Today",body:`<ul class="nc-doc-ul">${c.meds.split(/,\s*/).map(m=>`<li>${esc(m)}</li>`).join("")}</ul>`});
-  return r.map(x=>({...x,on:!x.gap}));
+  const want=x=>["ecg","labs","test"].includes(x.id)||(x.id==="tele"&&!/no events|no arrhythmia|^normal|^sinus rhythm$/i.test(c.tele));
+  return r.map(x=>({...x,on:!x.gap&&want(x)}));
 }
 
 /* ---------- routes (guideline pagers) and synthetic on-call roster ---------- */
@@ -172,6 +173,15 @@ const TOPICS=[
   {g:"Conditions",items:[["acs","ACS / MI / CAD"],["hf","Heart failure"],["arr","Tachy- or bradyarrhythmia"],["peri","Pericarditis / effusion / tamponade"],["myo","Myocarditis"],["valve","Valvular heart disease"],["onc","Cardio-oncology"]]}
 ];
 const TOPIC_LABEL=Object.fromEntries(TOPICS.flatMap(g=>g.items));
+/* Tips quoted closely from the Cardiovascular Medicine consult guidelines one-pager (Lena). */
+const Q_FINDING=/troponin|\btrop\b|\becg\b|\bekg\b|telemetry|\btele\b|t-wave|st (elevation|depression)|\bqtc?\b/i;
+const Q_AVOID=/follow[- ]?up|outpatient|\bclinic\b|discharge|\bdispo|transfer/i;
+const qAsks=t=>/\?|\b(should|whether|recommend|recs?|advise|help|need|eval(uate|uation)?|manage(ment)?|workup|is (this|it|there)|do(es)? (he|she|they|the patient))\b/i.test(t||"");
+/* one line, only when it applies (guideline wording, lightly shortened) */
+function qHint(q){const t=(q||"").trim();if(!t)return "";
+  if(Q_AVOID.test(t))return "Admissions, transfers, outpatient follow-up and non-urgent discharge questions usually don’t go to the consult team.";
+  if(Q_FINDING.test(t)&&!qAsks(t))return "Cardiology asks that troponin, ECG and telemetry findings come with a question. What do you want answered?";
+  return ""}
 const TOPIC_Q={
   chest:"Please evaluate chest pain and advise whether further ischemic workup is needed.",
   dysp:"Please evaluate dyspnea for a possible cardiac cause and advise on workup.",
@@ -191,7 +201,7 @@ const OTHER_SPECS=["Critical Care","Dermatology","Endocrinology","Gastroenterolo
 /* natural-language router: first match wins */
 const RULES=[
   [/admit(ted|ting)? to cardiology|admission to cardiology|transfer to cardiology/i,"adm","acs","Admission to cardiology"],
-  [/\bstemi\b|st[- ]elevation (mi|myocardial)|cath(eter)? lab|\bcath\b|occlusion/i,"ic","acs","Possible STEMI / cath evaluation"],
+  [/\bstemi\b|st[- ]elevation (mi|myocardial)|cath(eter)? lab activation|activate (the )?cath lab|occlusion mi|\bomi\b/i,"ic","acs","Possible STEMI / cath evaluation"],
   [/interrogat|device check|pacemaker check|icd check|shock(ed|s)? (by|from) (his|her|their|the|an?) ?(icd|defibrillator|device)|(icd|defibrillator|device) (shock|fired|discharge)/i,"dev","arr","Device interrogation"],
   [/cardiogenic|\bin shock\b|shock state|pressor|norepi|levophed|impella|balloon pump|iabp|\bicu-level|hypotensi/i,"cicu","hf","Possible cardiogenic shock"],
   [/pacemaker|\bicd\b|defibrillator|\bcrt\b/i,"dev","arr","Cardiac device question"],
@@ -199,7 +209,7 @@ const RULES=[
   [/congenital|fallot|fontan|\bachd\b|tetralogy|\basd\b|\bvsd\b/i,"achd","arr","Adult congenital heart disease"],
   [/stat echo|urgent echo|echo (today|now|asap)/i,"echo","peri","Stat echocardiogram"],
   [/a-?fib|atrial fib|flutter|\brvr\b|brady|heart block|tachyarr|\bsvt\b|palpitation|arrhythm/i,"gen","arr","Arrhythmia management"],
-  [/chest pain|troponin|\btrop\b|nstemi|\bacs\b|angina|\bcad\b|t-wave|st depression/i,"gen","acs","Chest pain / possible ACS"],
+  [/chest pain|troponin|\btrop\b|nstemi|\bacs\b|angina|\bcad\b|t-wave|st depression|\bcath\b|angiogra/i,"gen","acs","Chest pain / possible ACS"],
   [/heart failure|\bchf\b|hfref|hfpef|\bbnp\b|volume overload|diures/i,"gen","hf","Heart failure management"],
   [/pericard|effusion|tamponade/i,"gen","peri","Pericarditis / effusion"],
   [/myocarditis/i,"gen","myo","Possible myocarditis"],
@@ -214,7 +224,7 @@ function routeQuestion(q){for(const [re,r,t,reason] of RULES) if(re.test(q)) ret
 /* ---------- state ---------- */
 const NC={sess:0};
 let root=null,importRun=0,ocRun=0;
-function reset(){NC.sess++;importRun++;ocRun++;Object.assign(NC,{step:1,maxStep:1,pt:null,imported:false,mode:"pick",route:null,topic:null,clin:null,question:"",reason:"",urg:"Routine",chat:[],busy:false,awaiting:false,askRouted:false,askResult:null,unstable:false,ocKey:null,rrt:false,dupOk:null})}
+function reset(){NC.sess++;importRun++;ocRun++;Object.assign(NC,{step:1,maxStep:1,pt:null,imported:false,mode:"pick",route:null,topic:null,clin:null,question:"",pickQ:"",reason:"",urg:"Routine",chat:[],busy:false,awaiting:false,askRouted:false,askResult:null,unstable:false,ocKey:null,rrt:false,dupOk:null})}
 const isPager=p=>/^\d+$/.test(p);
 const pagerText=r=>isPager(r.pager)?"Pager "+r.pager:r.pager;
 const initials=n=>n.replace(/,.*$/,"").split(/\s+/).map(w=>w[0]).join("").slice(0,2);
@@ -310,6 +320,16 @@ function paint(){
 }
 const titleText=()=>NC.pt?`Consult for ${esc(PT[NC.pt].name)}`:"New consult";
 function setTitle(){const h=root&&root.querySelector("#ncTitle");if(!h)return;h.classList.remove("nc-swap");void h.offsetWidth;h.innerHTML=titleText();h.classList.add("nc-swap")}
+/* bring what the user's action just revealed into view, scrolling only as much as needed and never
+   under the sticky footer; earlier content stays above. top:N aligns the element N px below the top
+   so the end of the previous section still peeks in. */
+function reveal(el,o={}){
+  if(!root||!el)return;const foot=root.querySelector("#ncpAct"),fh=foot?foot.offsetHeight:0;
+  const sr=root.getBoundingClientRect(),r=el.getBoundingClientRect(),vt=sr.top+16,vb=sr.bottom-fh-12;
+  let d=0;if(o.top!=null)d=r.top-vt-o.top;else if(r.bottom>vb)d=Math.min(r.bottom-vb,r.top-vt);else if(r.top<vt)d=r.top-vt;
+  if(Math.abs(d)>2)root.scrollBy({top:d,behavior:RM?"auto":"smooth"});
+  if(o.focus)o.focus.focus({preventScroll:true});
+}
 function actions(hint,btns){root.querySelector("#ncpAct").innerHTML=`<span class="ncp-hint">${hint||""}</span>${btns}`}
 function lockAhead(){NC.maxStep=NC.step;root.querySelectorAll("[data-ncstep]").forEach(b=>{const n=+b.dataset.ncstep;if(n>NC.step){b.disabled=true;b.classList.remove("done");b.querySelector(".nc-num").textContent=n}})}
 const ptChip=()=>{const p=PT[NC.pt];return `<div class="nc-ptchip"><span class="nc-ini">${initials(p.name)}</span><b>${esc(p.name)}</b><span class="nc-ptid">${esc(p.room)} · ${esc(p.mrn)}</span><button type="button" data-ncgo="1">Change</button></div>`};
@@ -336,7 +356,7 @@ function paint1(){
   const dd=Combo({placeholder:"Search or select a patient",labelledby:"ptLbl",value:NC.pt,expanded:items.map(i=>i.id),
     groups:[{label:"My patients",items}],
     find:id=>({id,label:PT[id].name,meta:`${PT[id].room} · ${PT[id].mrn}`}),
-    onSelect:p=>{if(NC.pt===p.id)return;Object.assign(NC,{pt:p.id,rrt:false,imported:false,route:null,topic:null,clin:null,chat:[],askRouted:false,askResult:null,question:"",reason:"",ocKey:null});NC.sess++;lockAhead();setTitle();runImport()}});
+    onSelect:p=>{if(NC.pt===p.id)return;Object.assign(NC,{pt:p.id,rrt:false,imported:false,route:null,topic:null,clin:null,chat:[],askRouted:false,askResult:null,question:"",pickQ:"",reason:"",ocKey:null});NC.sess++;lockAhead();setTitle();runImport()}});
   pane.querySelector("#ptDD").appendChild(dd);
   if(NC.pt&&NC.imported)importStatic();else if(NC.pt)runImport();
   act1();
@@ -428,7 +448,7 @@ function paintAsk(){
   body.innerHTML=`<div class="ncc${NC.chat.length?" nc-started":""}" id="ncc"><div class="ncc-hero"><h3>What do you need from the consultant?</h3><p>Describe the question in your own words. We’ll ask a couple of things, then suggest where it goes.</p></div>
     <div class="ncc-log" id="nccLog"></div>
     <div class="ncc-comp"><div class="ncc-box"><textarea id="nccIn" rows="2" placeholder="e.g. New AF with RVR, rates 130s despite metoprolol — rate vs rhythm control and anticoagulation?" aria-label="Consult question"></textarea>
-      <div class="ncc-tools"><button type="button" class="ncc-ex" data-ncex="Rising troponin 34 → 91 with new T-wave inversions in a patient with prior PCI. Is this ACS or demand?">Try: rising troponin</button><button type="button" class="ncc-ex" data-ncex="Pacemaker patient with 2.8 second pauses on telemetry overnight, needs device check">Try: pacemaker pauses</button><button type="button" class="ncc-send" id="nccSend" aria-label="Send question" disabled>${I.up}</button></div></div></div></div>`;
+      <div class="ncc-tools">${CHART[NC.pt]&&CHART[NC.pt].why?`<button type="button" class="ncc-ex" data-ncex="${esc(CHART[NC.pt].why)}. What do you recommend?">Try an example for ${esc(PT[NC.pt].name.split(" ")[0])}</button>`:""}<button type="button" class="ncc-send" id="nccSend" aria-label="Send question" disabled>${I.up}</button></div></div></div></div>`;
   const log=body.querySelector("#nccLog"),inp=body.querySelector("#nccIn"),send=body.querySelector("#nccSend"),wrap=body.querySelector("#ncc"),comp=body.querySelector(".ncc-comp");
   const setH=()=>wrap.style.setProperty("--ch",comp.offsetHeight+"px");setH();
   NC.chat.forEach(m=>log.insertAdjacentHTML("beforeend",m.html));log.querySelectorAll(".ncc-opts").forEach(o=>o.classList.add("nc-used"));bindRouteCard(log);
@@ -473,7 +493,7 @@ async function ask(q){
   const r=routeQuestion(NC.question),p=PT[NC.pt],c=CHART[NC.pt];
   if(!r){await aiSay([{text:"I couldn’t match that to a service yet. This demo covers **Cardiovascular Medicine** — describe the cardiac concern (symptom, ECG, troponin, rhythm, device…), or switch to **Pick a specialty**."}],[["Reading your question","doc"],["Matching to a service","route"]]);NC.question="";NC.busy=false;return}
   NC.reason=r.reason;if(r.topic)NC.topic=r.topic;
-  if(dead())return;const t1=await aiSay([{text:`Got it — I’d file this under **${r.reason}** for ${p.name}. Two quick checks before I route it.`},{text:"Is the patient hemodynamically stable right now?"}],[["Reading your question","doc"],["Matching to a service","route"],["Checking the consult guidelines","scope"]]);
+  if(dead())return;const t1=await aiSay([{text:`Got it — I’d file this under **${r.reason}** for ${p.name}. Two quick checks before I suggest a service.`},{text:"Is the patient hemodynamically stable right now?"}],[["Reading your question","doc"],["Matching to a service","route"],["Checking the consult guidelines","scope"]]);
   if(dead())return;const st=await choose(t1,[["stable","Stable"],["unstable","Unstable / worsening"]]);
   if(st==="unstable"){
     NC.unstable=true;NC.urg="Urgent";
@@ -491,7 +511,7 @@ async function ask(q){
   if(route!=="ic"&&route!=="adm"&&/troponin|trop\b|t-wave|telemetry|\btele\b|ecg|ekg/i.test(NC.question)&&!/\?/.test(NC.question)){
     if(dead())return;const t3=await aiSay([{text:"Guidelines ask that troponin, ECG and telemetry findings come with a clinical question. What do you want answered?"}]);
     if(dead())return;const qq=await choose(t3,[["acs","Is this ACS or demand?"],["mgmt","How should we manage it?"],["test","Is further testing needed?"]]);
-    NC.question+=" "+{acs:"Is this ACS versus demand ischemia?",mgmt:"How should we manage this?",test:"Is further cardiac testing needed?"}[qq];
+    NC.question=NC.question.trim()+(/[.?!]$/.test(NC.question.trim())?" ":". ")+{acs:"Is this ACS versus demand ischemia?",mgmt:"How should we manage this?",test:"Is further cardiac testing needed?"}[qq];
   }
   let R=ROUTES[route];const why=[r.reason+" → "+(route==="pamf"?"PAMF patients go to PAMF Cardiology":route==="adm"?"admissions aren’t consults — call the admitting team":R.desc)];
   if(c.flag&&!(c.flag.t==="bad"&&/\?/.test(NC.question))&&!(c.pamf&&route!=="pamf"))why.push(c.flag.x);
@@ -499,8 +519,8 @@ async function ask(q){
   if(c.pamf&&EMERG.includes(route))why.push("PAMF patient — emergency stays with this pager; also let PAMF Cardiology know");
   if(NC.unstable)why.push("Marked unstable — activate the local emergency response first");
   R=ROUTES[route];
-  if(dead())return;await aiSay([{text:route==="adm"?"This isn’t a consult — admissions and transfers go to the admitting cardiology team. Details are below the chat.":`Routed to **${R.name}**. The suggestion and who’s on call are below the chat.`}],[["Checking the consult guidelines","scope"],["Choosing the service","route"]]);
-  if(dead())return;NC.busy=false;NC.askResult={route,why};if(NC.route!==route){NC.route=route;NC.clin=null}NC.askRouted=true;
+  if(dead())return;await aiSay([{text:route==="adm"?"This isn’t a consult — admissions and transfers go to the admitting cardiology team. Details are below the chat.":`I’d suggest **${R.name}**. Confirm it below the chat, or choose a different service.`}],[["Checking the consult guidelines","scope"],["Choosing the service","route"]]);
+  if(dead())return;NC.busy=false;NC.askResult={route,why};if(NC.route!==route){NC.route=route;NC.clin=null}NC.askRouted=false;
   paintAskResult();paintOncall();act2();
   setTimeout(()=>{const r=root&&root.querySelector("#askRes");r&&r.scrollIntoView({behavior:RM?"auto":"smooth",block:"start"})},T(120));
 }
@@ -508,11 +528,16 @@ function paintAskResult(){
   const box=root&&root.querySelector("#askRes");if(!box)return;
   if(NC.mode!=="ask"||!NC.askResult){box.innerHTML="";return}
   const {route,why}=NC.askResult,R=ROUTES[route];
-  box.innerHTML=`<div class="nc-route"><div class="nc-route-top"><span class="nc-tile nc-sm">${I.sparkSm}</span><span class="nc-route-eyebrow">Suggested route</span><button type="button" class="nc-link" data-ncalt>Choose a different service</button></div>
+  box.innerHTML=`<div class="nc-route"><div class="nc-route-top"><span class="nc-tile nc-sm">${I.sparkSm}</span><span class="nc-route-eyebrow">${NC.askRouted?"Confirmed route":"Suggested route"}</span><button type="button" class="nc-link" data-ncalt>Choose a different service</button></div>
     <div class="nc-route-path"><span>Cardiovascular Medicine</span>${I.chevR}<b>${esc(R.name)}</b></div>
     <div class="nc-route-pg">${esc(isPager(R.pager)?"Pager "+R.pager+" · "+R.desc:R.desc)}</div>
-    <ul class="nc-route-why">${why.map(w=>`<li><span class="nc-route-ck">${I.ck}</span>${esc(w)}</li>`).join("")}</ul></div>`;
-  box.querySelector("[data-ncalt]").onclick=()=>{NC.mode="pick";paint2()};
+    <ul class="nc-route-why">${why.map(w=>`<li><span class="nc-route-ck">${I.ck}</span>${esc(w)}</li>`).join("")}</ul>
+    ${NC.askRouted?"":`<div class="nc-alert-act"><button type="button" class="ncp-btn nc-sm" data-ncconfirm>Use ${esc(R.name)}</button></div>`}</div>`;
+  box.querySelector("[data-ncalt]").onclick=()=>{if(!NC.pickQ)NC.pickQ=NC.question;NC.mode="pick";paint2()};
+  const ok=box.querySelector("[data-ncconfirm]");
+  if(ok)ok.onclick=()=>{NC.route=route;NC.askRouted=true;paintAskResult();paintOncall();act2();
+    const h=box.querySelector(".nc-route-eyebrow");h&&h.setAttribute("tabindex","-1");h&&h.focus({preventScroll:true});
+    setTimeout(()=>{const oc=root&&root.querySelector("#oncall");oc&&oc.scrollIntoView({behavior:RM?"auto":"smooth",block:"start"})},T(60))};
 }
 function bindRouteCard(log){
   log.querySelectorAll(".ncc-route").forEach(card=>{
@@ -558,11 +583,12 @@ async function paintOncall(){
   box.querySelectorAll(".nco-it").forEach(b=>b.onclick=()=>{NC.clin=b.dataset.ncc;box.querySelectorAll(".nco-it").forEach(x=>{x.setAttribute("aria-checked",x===b);x.classList.add("nc-settled")});
     box.querySelector("#ncoBusy").hidden=!list.find(x=>x[0]===NC.clin&&x[2]!=="av");act2()});
   act2();
+  if(fresh)setTimeout(()=>reveal(box.querySelector(".nco")),T(list.length*80+60));
 }
 function act2(){
   const ok=NC.route!=="adm"&&ocReady()&&NC.clin&&root.querySelector(".nco-list");
   if(NC.route==="adm"&&root.querySelector("#oncall .nco")){actions("Admissions are handled by phone — no consult page is sent.",`<button type="button" class="ncp-btn nc-ghost" id="b2">Back</button><button type="button" class="ncp-btn" id="n2" disabled>Generate request</button>`);root.querySelector("#b2").onclick=()=>go(1);return}
-  actions(ok?`Paging ${esc(NC.clin)} · ${esc(ROUTES[NC.route].name)}`:"",`<button type="button" class="ncp-btn nc-ghost" id="b2">Back</button><button type="button" class="ncp-btn" id="n2"${ok?"":" disabled"}>Generate request</button>`);
+  actions(ok?`Paging ${esc(NC.clin)} · ${esc(ROUTES[NC.route].name)}`:"",`<button type="button" class="ncp-btn nc-ghost" id="b2">Back</button><button type="button" class="ncp-btn" id="n2"${ok?"":" disabled"}>Continue</button>`);
   root.querySelector("#b2").onclick=()=>go(1);root.querySelector("#n2").onclick=()=>go(3);
 }
 
@@ -572,71 +598,112 @@ const abnOf=c=>ABN_RE.test(c.labs+" "+c.ecg+" "+c.tele);
 const lc=t=>/^[A-Z][a-z]/.test(t)?t[0].toLowerCase()+t.slice(1):t;
 const defUrg=()=>NC.unstable?"Unstable":(CHART[NC.pt].risk?"Urgent":NC.urg);
 function buildFields(){
-  const p=PT[NC.pt],c=CHART[NC.pt];let q=NC.question||(NC.topic?TOPIC_Q[NC.topic]:"");
-  if(abnOf(c)&&!/\?/.test(q))q+=` Specifically: given ${c.risk||"the abnormal findings above"}, what do you recommend, and is further workup needed?`;
-  return {name:p.name,mrn:p.mrn,room:p.room,team:TEAM,req:`${ME} · Attending hospitalist`,cb:CALLBACK,at:`Today · ${fmtNow()}`,need:NEED_BY[defUrg()],
+  const p=PT[NC.pt],c=CHART[NC.pt];const q=((NC.mode==="pick"?NC.pickQ:NC.question)||"").trim();
+  return {name:p.name,mrn:p.mrn,room:p.room,team:TEAM,req:`${ME} · Attending hospitalist`,cb:CALLBACK,at:`Today · ${fmtNow()}`,need:NEED_BY[(root&&root.querySelector("input[name=ncurg]:checked")?.value)||defUrg()],
     summary:`${c.age}-year-old ${c.sex==="F"?"woman":"man"} with ${/^No known/.test(c.hx)?"no known cardiac history":lc(c.hx)}, admitted for ${lc(c.adm)}.`,
-    question:q,history:`Cardiac concern: ${c.why}. ${c.hx}. Current medications: ${c.meds}.`,
-    results:`ECG: ${c.ecg}. Telemetry: ${c.tele}. Labs: ${c.labs}.`,testing:c.miss.testing?"":c.testing,
-    cardio:c.miss.cardio?"":`${c.hx} · Cardiologist: ${c.cardio}`,tele:c.tele,labs:c.labs,pamf:c.pamf,ecgOk:c.ecgOk};
+    question:q,history:`${c.why}.`,meds:c.meds,
+    labs:`ECG: ${c.ecg}\nTelemetry: ${c.tele}\nLabs: ${c.labs}`,testing:c.miss.testing?"":c.testing,
+    cardio:c.miss.cardio?"":`${c.hx} · Cardiologist: ${c.cardio}`,pamf:c.pamf,ecgOk:c.ecgOk};
 }
 function paint3(){
   const pane=root.querySelector("#ncpPane"),f=buildFields(),R=ROUTES[NC.route];
   const src=t=>`<span class="nct-src">${I.sparkSm}${t}</span>`;
   const fld=(k,label,req,cls,ta,s)=>`<div class="nct-f ${cls||""}" data-nck="${k}"><label for="f-${k}">${label}${req?" <i>*</i>":""}</label>${ta?`<textarea id="f-${k}" rows="${ta}"${req?" data-ncreq":""}></textarea>`:`<input id="f-${k}" type="text"${req?" data-ncreq":""}>`}${s?src(s):""}</div>`;
-  pane.innerHTML=`<div class="nct-grid"><div class="nct-main">${ptChip()}
-    <div class="nct-to">${av(NC.clin,40)}<div class="nct-to-who"><small>Page goes to</small><b>${esc(NC.clin)}</b><span>${esc(R.name)}</span></div><div class="nct-to-pg">${esc(pagerText(R))}</div></div>
-    <div class="nct-gen" id="gen"><span class="nc-tile nc-live">${I.spark}</span></div>
-    <div id="secs" hidden>
-      <section class="nct-sec" style="animation-delay:0ms"><div class="nct-sh"><span class="nc-num">1</span>Patient and requester</div><div class="nct-body">
+  const p=PT[NC.pt],cc=CHART[NC.pt],q0=(NC.mode==="pick"?NC.pickQ:NC.question)||"";
+  const risk=cc.risk,u0=NC.unstable?"Unstable":"";
+  const grp=(id,n,t,sub,body,cls)=>`<section class="nct-sec ncg ${cls||""}" aria-labelledby="${id}"><div class="nct-sh"><span class="nc-num">${n}</span><span id="${id}">${t}</span>${sub?`<span class="nct-sh-sub">${sub}</span>`:""}</div><div class="nct-body">${body}</div></section>`;
+  pane.innerHTML=`<div class="nct-grid nc-predraft"><div class="nct-main">
+    <div class="ncq-head">
+      <div class="ncq-to">${av(NC.clin,32)}<div class="ncq-who"><small>Page to</small><b>${esc(NC.clin)}</b><span>${esc(R.name)} · ${esc(pagerText(R))}</span></div></div>
+    </div>
+    <div hidden><textarea id="f-question" data-ncreq aria-hidden="true" tabindex="-1"></textarea></div>
+    ${grp("ncgPt",1,"Patient and requester","",`
         ${fld("name","Patient name",1,"nc-s3 nc-lock")}${fld("mrn","MRN",1,"nc-s2 nc-lock")}${fld("room","Room",1,"nc-s1 nc-lock")}
         ${fld("team","Primary team",1,"nc-s3")}${fld("req","Requester name and role",1,"nc-s3")}
-        ${fld("cb","Callback number",1,"nc-s2")}${fld("at","Requested date and time",1,"nc-s2")}${fld("need","Needed by",0,"nc-s2")}</div></section>
-      <section class="nct-sec" style="animation-delay:90ms"><div class="nct-sh"><span class="nc-num">2</span>Clinical request</div><div class="nct-body">
-        ${fld("summary","One-line patient summary",1,"",2,"From the chart")}
-        ${fld("question","Focused consult question",1,"",3,NC.mode==="ask"&&NC.chat.length?"From your question":"From the topic — make it specific")}
-        ${fld("history","Relevant history, treatments, and recent change",0,"",3,"From the chart")}
-        ${fld("results","Pertinent results available now and tests still pending",0,"",3,"From the chart")}
-        ${fld("testing","Recent cardiac testing (Stanford or outside)",0,"",2,"From the chart")}</div></section>
-      <section class="nct-sec" style="animation-delay:180ms"><div class="nct-sh"><span class="nc-num">3</span>Urgency and safety</div><div class="nct-body"><div class="nct-f">
-        <div class="nct-radios" role="radiogroup" aria-label="Urgency"><label><input type="radio" name="ncurg" value="Routine">Routine</label><label><input type="radio" name="ncurg" value="Urgent">Urgent</label><label class="nc-bad"><input type="radio" name="ncurg" value="Unstable">Patient unstable — activate local emergency response</label></div>
-        <div id="urgNote"></div></div></div></section>
-      <section class="nct-sec" style="animation-delay:270ms"><div class="nct-sh"><span class="nc-num">4</span>Cardiovascular details</div><div class="nct-body">
-        <div class="nct-f nc-s2"><label>PAMF patient</label><div class="nct-radios"><label><input type="radio" name="ncpamf" value="yes">Yes</label><label><input type="radio" name="ncpamf" value="no">No</label></div></div>
-        <div class="nct-f nc-s4" data-nck="ecg"><label>Updated ECG</label><div class="nct-radios"><label><input type="radio" name="ncecg" value="yes">Available</label><label><input type="radio" name="ncecg" value="no">Not available</label></div></div>
-        ${fld("cardio","Prior cardiac history and cardiologist",1,"",2,"From the chart")}
-        ${fld("tele","Telemetry issue",0,"nc-s3")}${fld("labs","Pertinent cardiac labs and trend",1,"nc-s3")}</div></section>
-      <section class="nct-sec" style="animation-delay:360ms"><div class="nct-sh"><span class="nc-num">5</span>Chart records<span class="nct-sh-sub">Sent to the consultant as files</span></div><ul class="nct-recs" id="ncRecs"></ul></section>
+        ${fld("cb","Callback number",1,"nc-s2")}${fld("at","Requested date and time",1,"nc-s2")}${fld("need","Needed by",0,"nc-s2")}`)}
+    ${grp("ncgReq",2,"Consult question and urgency","",`
+      <div class="nct-f" data-nck="question"><label for="ncqIn">What’s your concern, and what do you need from cardiology? <i>*</i></label>
+        <textarea id="ncqIn" rows="3" aria-describedby="ncqHint" placeholder="What’s changed, what you’ve tried, and the decision you need help with"></textarea>
+        <p class="ncq-hint" id="ncqHint" aria-live="polite"></p></div>
+      <div class="nct-f" data-nck="urg"><label id="ncUrgL">Urgency <i>*</i></label>
+        <div class="nct-radios" role="radiogroup" aria-labelledby="ncUrgL"><label><input type="radio" name="ncurg" value="Routine"${u0==="Routine"?" checked":""}>Routine</label><label><input type="radio" name="ncurg" value="Urgent">Urgent</label><label class="nc-bad"><input type="radio" name="ncurg" value="Unstable"${u0==="Unstable"?" checked":""}>Patient unstable — activate local emergency response</label></div>
+        ${risk?`<p class="ncq-risk">The chart shows ${esc(risk)}.</p>`:""}
+        <div id="urgNote"></div></div>`,"ncg-req")}
+    <div id="genWrap"></div>
+    <div id="secs" hidden>
+      ${grp("ncgAi",3,"Clinical summary","",`
+        ${fld("summary","One-line summary",1,"",2,"Drafted from the chart")}
+        ${fld("history","Hospital course and what’s been tried",0,"",2,"Drafted from the chart")}`,"ncg-ai")}
+      ${grp("ncgChart",4,"Cardiovascular details","",`
+        ${fld("cardio","Cardiac history and cardiologist",1,"",2,"From the chart")}
+        ${fld("meds","Medications",0,"",2,"From the chart")}
+        ${fld("labs","ECG, telemetry and cardiac labs",1,"",3,"From the chart")}
+        ${fld("testing","Recent cardiac testing (Stanford or outside)",0,"",2,"From the chart")}`,"ncg-chart")}
+      <section class="nct-sec ncg"><div class="nct-sh"><span class="nc-num">5</span>Chart records</div><ul class="nct-recs" id="ncRecs"></ul>
+        <div class="nct-addf"><button type="button" class="ncp-btn nc-ghost nc-sm" id="ncAddF">${I.upload}Add file or photo</button><span>Saved to ${esc(p.name.split(" ")[0])}’s chart and attached to this consult.</span><input type="file" id="ncAddIn" accept="image/*,.pdf" multiple hidden></div></section>
     </div></div>
-    <aside class="nct-aside" aria-label="Specialty checklist"><div class="nct-cl"><div class="nct-cl-h"><h3>Specialty checklist</h3><span class="nct-cl-n" id="ncCkN">0/6</span></div><div class="nct-cl-bar"><i id="ncCkBar"></i></div><p>Updates as the request fills in and as you edit.</p><ul class="nct-ck" id="ncCk"></ul></div></aside></div>`;
-  bindChip();act3(true);summary3();
-  const th=Thinker();pane.querySelector("#gen").appendChild(th);
-  const run=NC.sess,key=`${NC.pt}|${NC.route}|${NC.clin}`,restore=NC.draft&&NC.draft.key===key?NC.draft:null,c=CHART[NC.pt];
+    <aside class="nct-aside" aria-label="Specialty checklist" hidden><div class="nct-cl"><div class="nct-cl-h"><h3>Specialty checklist</h3><span class="nct-cl-n" id="ncCkN">0/6</span></div><div class="nct-cl-bar"><i id="ncCkBar"></i></div><p>Updates as the request fills in and as you edit.</p><ul class="nct-ck" id="ncCk"></ul></div></aside></div>`;
+  bindChip();
+  const qIn=pane.querySelector("#ncqIn"),qHintEl=pane.querySelector("#ncqHint");qIn.value=q0;
+  let hT=0;const showHint=()=>{qHintEl.textContent=qHint(qIn.value)};
+  const setQ=v=>{if(NC.mode==="pick")NC.pickQ=v;else NC.question=v};
+  qIn.addEventListener("input",()=>{setQ(qIn.value);clearTimeout(hT);if(!qHint(qIn.value))qHintEl.textContent="";else hT=setTimeout(showHint,T(900));
+    const fq=pane.querySelector("#f-question");if(fq&&drafted()){fq.value=qIn.value;fq.dispatchEvent(new Event("input",{bubbles:true}))}else preFoot()});
+  qIn.addEventListener("blur",showHint);
+  const key=`${NC.pt}|${NC.route}|${NC.clin}`,restore=NC.draft&&NC.draft.key===key&&NC.draft.qsrc===q0?NC.draft:null;
+  const urgV=()=>pane.querySelector("input[name=ncurg]:checked")?.value;
+  {const f0=buildFields();["name","mrn","room","team","req","cb","at","need"].forEach(k=>{const el=pane.querySelector("#f-"+k);if(el)el.value=f0[k]||""});pane.querySelectorAll(".nc-lock input").forEach(i=>{i.readOnly=true;i.title="From the patient’s chart"})}
+  pane.querySelectorAll("input[name=ncurg]").forEach(el=>el.addEventListener("change",()=>{urgNote();if(drafted())summary3();else preFoot();setTimeout(()=>reveal(pane.querySelector('[data-nck="urg"]')),T(60))}));
+  if(urgV())urgNote();
+  const preFoot=()=>{const ready=qIn.value.trim()&&urgV();actions(ready?"":!qIn.value.trim()?"Write your question to draft the request.":"Choose an urgency to draft the request.",`<button type="button" class="ncp-btn nc-ghost" id="b3">Back</button><button type="button" class="ncp-btn" id="ncqGo"${ready?"":" disabled"}>Draft request</button>`);
+    root.querySelector("#b3").onclick=()=>go(2);root.querySelector("#ncqGo").onclick=()=>{setQ(qIn.value.trim());draft(false);setTimeout(()=>reveal(pane.querySelector("#genWrap")),T(40))}};
+  if(restore){if(restore.vals.question)qIn.value=restore.vals.question;Object.entries(restore.radios||{}).forEach(([n,v])=>{const r=pane.querySelector(`input[name=${n}][value="${v}"]`);if(r)r.checked=true});urgNote();draft(true)}else{preFoot();showHint();setTimeout(()=>reveal(qIn.closest("section"),{focus:qIn}),T(120))}
+  function draft(fromRestore){
+  pane.querySelector(".nct-grid").classList.remove("nc-predraft");
+  const f=buildFields();
+  pane.querySelector("#genWrap").innerHTML=fromRestore?"":`<div class="nct-gen" id="gen"><span class="nc-tile nc-live">${I.spark}</span></div>`;
+  act3(true);
+  const th=fromRestore?null:Thinker();if(th)pane.querySelector("#gen").appendChild(th);
+  const run=NC.sess,c=CHART[NC.pt];
   (async()=>{
     if(!restore)for(const [l,i] of [["Reading the patient information","doc"],["Drafting a one-line summary","pen"],["Linking results to your question","link"],["Filling in the request","form"]]){th.set(l+"…",i);await sleep(T(620));if(!root||NC.step!==3||run!==NC.sess)return}
     NC.filling=!restore;
-    pane.querySelector("#gen").remove();pane.querySelector("#secs").hidden=false;
+    pane.querySelector("#gen")?.remove();pane.querySelector("#secs").hidden=false;pane.querySelector(".nct-aside").hidden=false;
+    if(!restore)setTimeout(()=>reveal(pane.querySelector("#secs"),{top:72}),0);
     if(restore)pane.querySelectorAll(".nct-sec").forEach(x=>x.style.animation="none");
-    const rad=restore?restore.radios:{ncurg:defUrg(),ncpamf:f.pamf?"yes":"no",ncecg:f.ecgOk?"yes":"no"};
+    const rad=restore?restore.radios:{};
     Object.entries(rad).forEach(([n,v])=>{const r=pane.querySelector(`input[name=${n}][value="${v}"]`);if(r)r.checked=true});
-    if(!restore||!NC.recs||NC.recsPt!==NC.pt){NC.recs=recordsFor(NC.pt);NC.recsPt=NC.pt}renderRecs();
+    if(!restore||!NC.recs||NC.recsPt!==NC.pt){NC.recs=recordsFor(NC.pt);NC.recsPt=NC.pt}renderRecs();bindAddFile();
     urgNote();summary3();NC.genQ=restore?restore.genQ:f.question;pane.querySelectorAll(".nc-lock input").forEach(i=>{i.readOnly=true;i.title="From the patient’s chart"});
     const need={};if(c.miss.cardio)need.cardio=["Add prior cardiac history and the cardiologist, or “None known”.",`Not in the chart — ${c.miss.cardio}.`];if(c.miss.testing)need.testing=["Type a summary, or upload the report in Chart records below.",`Not in the chart — ${c.miss.testing}.`];
     NC.filling=!restore;
-    for(const k of ["name","mrn","room","team","req","cb","at","need","summary","question","history","results","testing","cardio","tele","labs"]){
-      const el=pane.querySelector("#f-"+k);if(!el||!root||NC.step!==3){NC.filling=false;return}const v=restore?restore.vals[k]:(f[k]||""),w=el.closest(".nct-f");
+    for(const k of ["name","mrn","room","team","req","cb","at","need","summary","question","history","cardio","meds","labs","testing"]){
+      const el=pane.querySelector("#f-"+k);if(!el||!root||NC.step!==3){NC.filling=false;return}const v=restore?restore.vals[k]:(f[k]||""),w=el.closest(".nct-f")||el.parentElement;
       if(need[k]){el.placeholder=need[k][0];const sEl=w.querySelector(".nct-src");if(sEl)sEl.remove()}
       if(restore){el.value=v??"";continue}
+      if(["name","mrn","room","team","req","cb","at","need"].includes(k))continue;
       w.classList.add("nc-fill");
       if(RM||v.length<4)el.value=v;else{const st=Math.max(2,Math.ceil(v.length/22));for(let i=0;i<=v.length;i+=st){el.value=v.slice(0,i);await sleep(14)}el.value=v}
       setTimeout(()=>w.classList.remove("nc-fill"),T(900));summary3();
     }
     NC.filling=false;
     pane.querySelectorAll("input,textarea").forEach(el=>el.addEventListener("input",()=>summary3()));
-    pane.querySelectorAll("input[name=ncurg]").forEach(el=>el.addEventListener("change",()=>{urgNote();summary3()}));
-    pane.querySelectorAll("input[name=ncpamf],input[name=ncecg]").forEach(el=>el.addEventListener("change",()=>summary3()));
+
+
     validate();summary3();
+    if(!restore){const h=pane.querySelector("#ncgAi");if(h){h.setAttribute("tabindex","-1");h.focus({preventScroll:true})}}
   })();
+  }
+}
+const drafted=()=>{const x=root&&root.querySelector("#secs");return !!x&&!x.hidden};
+/* new information goes into the chart and is attached here (one source of truth) */
+function bindAddFile(){
+  const b=root&&root.querySelector("#ncAddF"),inp=root&&root.querySelector("#ncAddIn");if(!b||!inp||b.dataset.on)return;b.dataset.on="1";
+  b.onclick=()=>inp.click();
+  inp.onchange=()=>{[...inp.files].forEach(fl=>{const img=/^image\//.test(fl.type),url=URL.createObjectURL(fl);
+    NC.recs.push({id:"u"+Date.now().toString(36)+Math.random().toString(36).slice(2,5),icon:"fDoc",title:fl.name,src:"Added by you · saved to chart",date:"Today",up:true,on:true,
+      body:img?`<img src="${url}" alt="${esc(fl.name)}" style="display:block;max-width:100%;border-radius:8px">`:`<p class="nc-doc-note">Uploaded file · ${esc(fl.name)}</p>`})});
+    inp.value="";renderRecs();summary3();const ul=root.querySelector("#ncRecs");ul&&ul.lastElementChild&&ul.lastElementChild.scrollIntoView({block:"nearest"})};
 }
 function renderRecs(){
   const ul=root&&root.querySelector("#ncRecs");if(!ul)return;
@@ -663,10 +730,10 @@ function openDoc(r){
   setTimeout(()=>m.querySelector(".nc-x").focus({preventScroll:true}),T(60));
 }
 function saveDraft(){
-  if(!root||!root.querySelector("#f-question")||root.querySelector("#gen"))return;
-  const vals={};["name","mrn","room","team","req","cb","at","need","summary","question","history","results","testing","cardio","tele","labs"].forEach(k=>vals[k]=root.querySelector("#f-"+k).value);
-  const radios={};["ncurg","ncpamf","ncecg"].forEach(n=>{const r=root.querySelector(`input[name=${n}]:checked`);if(r)radios[n]=r.value});
-  NC.draft={key:`${NC.pt}|${NC.route}|${NC.clin}`,vals,radios,genQ:NC.genQ};
+  if(!root||!root.querySelector("#f-question")||root.querySelector("#gen")||!drafted()||NC.filling)return;
+  const vals={};["name","mrn","room","team","req","cb","at","need","summary","question","history","cardio","meds","labs","testing"].forEach(k=>vals[k]=root.querySelector("#f-"+k).value);
+  const radios={};["ncurg"].forEach(n=>{const r=root.querySelector(`input[name=${n}]:checked`);if(r)radios[n]=r.value});
+  NC.draft={key:`${NC.pt}|${NC.route}|${NC.clin}`,vals,radios,genQ:NC.genQ,qsrc:(NC.mode==="pick"?NC.pickQ:NC.question)||""};
 }
 function urgNote(){const v=root.querySelector("input[name=ncurg]:checked")?.value,n=root.querySelector("#urgNote");if(!n||n.dataset.v===v)return;const quiet=!!n.dataset.v;n.dataset.v=v;n.classList.toggle("nc-quiet",quiet);
   const nb=root.querySelector("#f-need");if(nb&&(!nb.value.trim()||Object.values(NEED_BY).includes(nb.value.trim()))){nb.value=NEED_BY[v]||nb.value}
@@ -678,32 +745,32 @@ const val=k=>(root.querySelector("#f-"+k)?.value||"").trim();
 document.addEventListener("change",e=>{if(e.target&&e.target.id==="ncRrt"){NC.rrt=e.target.checked;validate()}});
 document.addEventListener("click",e=>{const b=e.target.closest&&e.target.closest("[data-nccicu]");if(!b||!root)return;saveDraft();const a=ONCALL.cicu.find(x=>x[2]==="av");NC.route="cicu";NC.clin=a?a[0]:ONCALL.cicu[0][0];NC.ocKey=null;if(NC.draft)NC.draft.key=`${NC.pt}|${NC.route}|${NC.clin}`;paint()});
 function validate(){
-  if(!root||root.querySelector("#gen"))return false;
+  if(!root||root.querySelector("#gen")||!drafted())return false;
   let ok=true;const uu=root.querySelector("input[name=ncurg]:checked")?.value,needRrt=uu==="Unstable"&&!NC.rrt;
-  root.querySelectorAll("[data-ncreq]").forEach(el=>{const miss=!el.value.trim(),w=el.closest(".nct-f");w.classList.toggle("nc-miss",miss&&!w.classList.contains("nc-need"));if(miss)ok=false});
+  root.querySelectorAll("[data-ncreq]").forEach(el=>{const miss=!el.value.trim(),w=el.closest(".nct-f")||el;w.classList.toggle("nc-miss",miss&&!w.classList.contains("nc-need"));if(miss)ok=false});
   const ckOk=NC.ckDone===true;
   act3(false,ok&&ckOk&&!needRrt,needRrt,!ckOk?NC.ckCount:null);return ok&&ckOk&&!needRrt;
 }
 const TESTING_RE=/testing|\btte\b|\btee\b|\becho|holter|\bmri\b|stress|\bcath|angiogra|no prior/i;
 /* each checklist item = specific fields; an item is open only when one of its fields is actually missing */
 function ckItems(){
-  const c=CHART[NC.pt],q=val("question"),abn=abnOf(c),ecg=!!root.querySelector("input[name=ncecg]:checked");
+  const c=CHART[NC.pt],q=val("question"),abn=abnOf(c);
   const empty=k=>!val(k);
   return [
     {t:"Patient name, MRN, brief history, focused question, and callback are included.",miss:["name","mrn","summary","question","cb"].filter(empty).map(k=>[k,"Required on the consult page."])},
     {t:"Prior cardiac history and the patient’s cardiologist are identified.",miss:empty("cardio")?[["cardio",c.miss.cardio?`Not in the chart — ${c.miss.cardio}. Add it, or write “None known”.`:"Add prior cardiac history and the cardiologist, or “None known”."]]:[]},
-    {t:"Updated ECG and pertinent cardiac laboratory trends are available or pending.",miss:[...(ecg?[]:[["ecg","Mark whether an updated ECG is available."]]),...(empty("labs")?[["labs","Add pertinent cardiac labs, or “Pending”."]]:[])]},
+    {t:"Updated ECG and pertinent cardiac laboratory trends are available or pending.",miss:empty("labs")?[["labs","Add the ECG and pertinent cardiac labs, or “Pending”."]]:[]},
     {t:"Recent Stanford or outside cardiac testing is summarized.",miss:empty("testing")?[["testing",c.miss.testing?`Not in the chart — ${c.miss.testing}. Summarize it, upload the report below, or write “None”.`:"Summarize recent testing, or write “None”."]]:[]},
-    {t:"Troponin, ECG, or telemetry abnormalities are linked to a clinical question.",miss:abn&&q&&!/\?/.test(q)?[["question",`This chart has an abnormal finding${c.risk?" ("+c.risk+")":""}. Ask what you want answered about it.`]]:[]},
+    {t:"Troponin, ECG, or telemetry abnormalities are linked to a clinical question.",miss:abn&&q&&!qAsks(q)?[["question",`This chart has an abnormal finding${c.risk?" ("+c.risk+")":""}. Ask what you want answered about it.`]]:[]},
     {t:"The correct general, admission, or subspecialty cardiology route is selected.",miss:[]}
   ];
 }
 function jumpTo(i){
   const it=ckItems()[i];const k=it&&it.miss.length?it.miss[0][0]:(i===5?"_route":["name","cardio","labs","testing","question"][i]);
-  const w=k==="_route"?root.querySelector(".nct-to"):root.querySelector(`.nct-f[data-nck="${k}"]`);if(!w)return;
+  const w=k==="_route"?root.querySelector(".ncq-to"):k==="question"?root.querySelector('[data-nck="question"]'):root.querySelector(`.nct-f[data-nck="${k}"]`);if(!w)return;
   w.scrollIntoView({block:"center",behavior:RM?"auto":"smooth"});
   w.classList.remove("nc-flash");void w.offsetWidth;w.classList.add("nc-flash");
-  const el=w.querySelector("textarea,input:not([readonly]):not([type=radio])")||w.querySelector("input[type=radio]");
+  const el=k==="_route"?null:k==="question"?root.querySelector("#ncqIn"):w.querySelector("textarea,input:not([readonly]):not([type=radio])")||w.querySelector("input[type=radio]");
   if(el)setTimeout(()=>{el.focus({preventScroll:true});if(el.setSelectionRange&&el.type!=="radio"){const L=el.value.length;el.setSelectionRange(L,L)}},T(380));
 }
 function summary3(){
@@ -740,7 +807,7 @@ function openReview(){
   const uLabel=urg==="Unstable"?"Unstable · RRT/code called":urg;
   const m=document.createElement("div");m.className="nc-modal";m.setAttribute("role","dialog");m.setAttribute("aria-modal","true");m.setAttribute("aria-labelledby","ncRvT");
   const att=(NC.recs||[]).filter(r=>r.on&&!r.gap);
-  const pageText=[`New consult — ${R.name}`,`${p.name} · MRN ${p.mrn} · Rm ${p.room}`,"",`Q: ${val("question")}`,"",val("summary"),"",`Urgency: ${uLabel}${urg!=="Routine"?" · needed "+(val("need")||"now").toLowerCase():""}`,`Callback ${val("cb")} · ${reqName}`]
+  const pageText=[`New consult — ${R.name}`,`${p.name} · MRN ${p.mrn} · Rm ${p.room}`,"",val("summary"),"",`Q: ${val("question")}`,"",`Urgency: ${uLabel}${urg!=="Routine"?" · needed "+(val("need")||"now").toLowerCase():""}`,`Callback ${val("cb")} · ${reqName}`]
     .concat(att.length?[`Attached: ${att.length} chart record${att.length===1?"":"s"}`]:[]).join("\n");
   m.innerHTML=`<div class="nc-modal-bd"></div><div class="nc-sheet nc-rv">
     <div class="nc-sheet-h"><div><h2 id="ncRvT">Review page</h2><p>This is what ${esc(NC.clin)} will receive.</p></div><button type="button" class="nc-x" data-ncclose aria-label="Close">${I.x}</button></div>
@@ -750,6 +817,7 @@ function openReview(){
         <div class="nc-bubble nc-bubble-text">${esc(pageText)}</div>
       </div>
     </div>
+    ${(()=>{const h=+String(NOW).split(":")[0];return urg==="Routine"&&(h>=22||h<7)?`<div class="nc-alert nc-info" style="margin:12px 0 0"><span class="nc-alert-ic">${I.info}</span><div>It’s ${fmtNow()}. Cardiology asks that non-urgent questions wait until 7 AM; the on-call fellow isn’t in house overnight.</div></div>`:""})()}
     <div class="nc-sheet-f"><button type="button" class="ncp-btn nc-ghost" data-ncclose>Edit</button><button type="button" class="ncp-btn" data-ncsend>Send page</button></div></div>`;
   root.appendChild(m);
   let sent=null;
@@ -769,11 +837,22 @@ function pushRecord(){
   const R=ROUTES[NC.route],urg=root.querySelector("input[name=ncurg]:checked")?.value||"Routine",q=val("question");
   const time=B.tick(),id="n"+Date.now().toString(36);
   const clause=t=>{const x=t.split(/[.?!]/)[0].trim();return x.length>64?x.slice(0,61).trim()+"…":x};
-  const reason=q&&q!==NC.genQ?clause(q):(NC.reason||(NC.topic?TOPIC_LABEL[NC.topic]:clause(q)));
+  const aiKept=NC.reason&&NC.askResult&&NC.askResult.route===NC.route;
+  const reason=q&&q!==NC.genQ?clause(q):(aiKept?NC.reason:(NC.topic?TOPIC_LABEL[NC.topic]:clause(q)));
   const requester=(val("req").split(" · ")[0]||ME).trim(),callback=val("cb")||CALLBACK;
   const files=(NC.recs||[]).filter(r=>r.on&&!r.gap).map((r,i)=>({key:`${id}-f${i}`,title:r.title,kind:"pdf",size:"PDF · "+(80+i*23)+" KB"}));
   FILE_BASE[id]=files;
-  C.push({id,pt:NC.pt,svc:"Cardiology",who:NC.clin,whoRole:R.name,urg:urg==="Unstable"?"Emergent":urg,emergent:urg==="Unstable",reason,ordered:time,question:q,requester,callback,
+  /* snapshot of the request exactly as sent; each line says where it came from */
+  const f=buildFields(),radio=n=>root.querySelector(`input[name=${n}]:checked`)?.value||"";
+  const srcOf=k=>{const v=val(k),o=String((k==="question"?NC.genQ:f[k])||"").trim();
+    if(!v)return null;if(!o)return "Added by you";if(v!==o)return "Edited by you";
+    return k==="question"?"Your question":["summary","history"].includes(k)?"Drafted from the chart":"From the chart"};
+  const line=(k,label)=>({label,text:val(k),src:srcOf(k)});
+  const request={sentAt:time,to:NC.clin,route:R.name,groups:[
+    {title:"Consult question and urgency",items:[line("question","Consult question"),{label:"Urgency",text:urg,src:null},{label:"Needed by",text:val("need"),src:null}]},
+    {title:"Clinical summary",items:[line("summary","One-line summary"),line("history","Hospital course and what’s been tried")]},
+    {title:"Cardiovascular details",items:[line("cardio","Cardiac history and cardiologist"),line("meds","Medications"),line("labs","ECG, telemetry and cardiac labs"),line("testing","Recent cardiac testing")]}]};
+  C.push({id,request,pt:NC.pt,svc:"Cardiology",who:NC.clin,whoRole:R.name,urg:urg==="Unstable"?"Emergent":urg,emergent:urg==="Unstable",reason,ordered:time,question:q,requester,callback,
     status:"paged",time,note:`Page sent to ${R.name}${isPager(R.pager)?" (pager "+R.pager+")":""} for ${NC.clin}. No acknowledgement yet.`,
     events:[[time,"Order created",`SEAL consult request · ${files.length} chart record${files.length===1?"":"s"} attached`,"ok"],[time,"Paged",`${R.name}${isPager(R.pager)?" · pager "+R.pager:""} · ${NC.clin}`,"blue"]]});
   return {id,time,name:PT[NC.pt].name,route:R.name,clin:NC.clin};
