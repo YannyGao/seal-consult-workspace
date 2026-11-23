@@ -538,7 +538,7 @@ async function paintOncall(){
     NC.ocKey=null;NC.clin=null;
     box.innerHTML=`<div class="nco"><div class="nc-alert nc-info"><span class="nc-alert-ic">${I.info}</span><div><b>Admissions and transfers aren’t consults</b>For a patient being admitted to a cardiology service, page the admitting team on <b>27112</b> — not the consult pager. For a transfer from your service, have an attending-to-attending conversation with the admitting cardiology attending; the consult team doesn’t accept transfers.</div></div>
       <div class="nco-h" style="margin-top:16px"><b>Admitting cardiology team · now</b><span>Pager 27112</span></div>
-      <div class="nco-list">${ONCALL.adm.map(x=>`<div class="nco-it nc-settled nco-static">${av(x[0],36)}<span class="nco-who"><b>${esc(x[0])}</b><span>${esc(x[1])}</span></span><span class="nco-st nc-s-${x[2]}">${esc(x[3])}</span></div>`).join("")}</div></div>`;
+      <div class="nco-list">${ONCALL.adm.map(x=>`<div class="nco-it nc-settled nco-static">${av(x[0],36)}<span class="nco-who"><b>${esc(x[0])}</b><span>${esc(x[1])}</span></span><span class="nco-st nc-s-${x[2]}">${x[2]==="av"?'<i class="nco-live"></i>':I.moon}${esc(x[3])}</span></div>`).join("")}</div></div>`;
     act2();return;
   }
   if(!ocReady()){box.innerHTML="";NC.ocKey=null;return}
@@ -552,7 +552,7 @@ async function paintOncall(){
     th.set("Matching availability right now…","think");await sleep(600);if(run!==ocRun||!root)return;
   }
   box.innerHTML=`<div class="nco"><div class="nco-h"><b>On call now · ${esc(R.name)}</b><span>${esc(pagerText(R))} · ${fmtNow()}</span></div>
-    <div class="nco-list" role="radiogroup" aria-label="Clinician to page">${list.map((x,i)=>`<button type="button" class="nco-it${fresh?"":" nc-settled"}" role="radio" aria-checked="${NC.clin===x[0]}" data-ncc="${esc(x[0])}" style="animation-delay:${i*80}ms"><span class="nco-rad"></span>${av(x[0],36)}<span class="nco-who"><b>${esc(x[0])}</b><span>${esc(x[1])}</span></span><span class="nco-st nc-s-${x[2]}">${esc(x[3])}</span></button>`).join("")}</div>
+    <div class="nco-list" role="radiogroup" aria-label="Clinician to page">${list.map((x,i)=>`<button type="button" class="nco-it${fresh?"":" nc-settled"}" role="radio" aria-checked="${NC.clin===x[0]}" data-ncc="${esc(x[0])}" style="animation-delay:${i*80}ms"><span class="nco-rad"></span>${av(x[0],36)}<span class="nco-who"><b>${esc(x[0])}</b><span>${esc(x[1])}</span></span><span class="nco-st nc-s-${x[2]}">${x[2]==="av"?'<i class="nco-live"></i>':x[2]==="busy"?I.clock:I.moon}${esc(x[3])}</span></button>`).join("")}</div>
     ${NC.route==="echo"?`<p class="nco-note">During the day, message the Lead Sonographer on Voalte. Between 5 PM and 7 AM the on-call fellow (24300) triages stat echo requests.</p>`:""}
     <p class="nco-note" id="ncoBusy"${list.find(x=>x[0]===NC.clin&&x[2]!=="av")?"":" hidden"}>This clinician isn’t immediately available — the page still goes to the ${esc(R.name)} pager.</p></div>`;
   box.querySelectorAll(".nco-it").forEach(b=>b.onclick=()=>{NC.clin=b.dataset.ncc;box.querySelectorAll(".nco-it").forEach(x=>{x.setAttribute("aria-checked",x===b);x.classList.add("nc-settled")});
