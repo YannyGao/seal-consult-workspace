@@ -815,3 +815,6 @@ body.ncp-open .pcbtn{display:inline-flex!important;top:76px;bottom:auto;right:20
 body.ncp-open .pcpanel:not([hidden]){display:flex!important;top:122px;bottom:auto;right:20px;z-index:80;max-height:calc(100vh - 140px)}
 /* New consult never uses the workboard's mono setting (times, MRNs and dates stay in the body font) */
 :root .ncp .ds-mono,:root .nc-modal .ds-mono,:root[data-hyb][data-hmono] .ncp .ds-mono,:root[data-ds="figma"] .ncp .ds-mono{font-family:inherit!important;font-size:inherit!important;font-weight:inherit!important;letter-spacing:inherit!important}
+/* a step you can jump to (not yet visited): clickable, no check mark */
+.ncp-step.nc-next{cursor:pointer;color:var(--ink)}
+.ncp-step.nc-next:hover{border-color:#C9CDD4;background:#fff}

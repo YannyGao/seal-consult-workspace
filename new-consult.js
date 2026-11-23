@@ -351,7 +351,14 @@ function reveal(el,o={}){
   if(Math.abs(d)>2)root.scrollBy({top:d,behavior:RM?"auto":"smooth"});
   if(o.focus)o.focus.focus({preventScroll:true});
 }
-function actions(hint,btns){root.querySelector("#ncpAct").innerHTML=`<span class="ncp-hint">${hint||""}</span>${btns}`}
+function actions(hint,btns){root.querySelector("#ncpAct").innerHTML=`<span class="ncp-hint">${hint||""}</span>${btns}`;syncSteps()}
+/* a step chip is clickable whenever Continue would get you there: the next step once Continue is enabled,
+   and step 3 from step 1 when the specialty and consultant are already chosen */
+function syncSteps(){if(!root)return;
+  const nx=root.querySelector("#n1,#n2"),canNext=!!nx&&!nx.disabled;
+  const ready2=!!NC.route&&NC.route!=="adm"&&!!NC.clin&&ocReady();
+  root.querySelectorAll("[data-ncstep]").forEach(b=>{const n=+b.dataset.ncstep;if(n===NC.step||n<=NC.maxStep)return;
+    const open=canNext&&(n===NC.step+1||(NC.step===1&&n===3&&ready2));b.disabled=!open;b.classList.toggle("nc-next",open)})}
 function lockAhead(){NC.maxStep=NC.step;root.querySelectorAll("[data-ncstep]").forEach(b=>{const n=+b.dataset.ncstep;if(n>NC.step){b.disabled=true;b.classList.remove("done");b.querySelector(".nc-num").textContent=n}})}
 const ptChip=()=>{const p=PT[NC.pt];return `<div class="nc-ptchip"><span class="nc-ini">${initials(p.name)}</span><b>${esc(p.name)}</b><span class="nc-ptid">${esc(p.room)} · ${esc(p.mrn)}</span><button type="button" data-ncgo="1">Change</button></div>`};
 function bindChip(){const b=root.querySelector("[data-ncgo]");if(b)b.onclick=()=>go(1)}
