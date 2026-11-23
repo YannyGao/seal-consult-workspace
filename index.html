@@ -3062,8 +3062,8 @@ const C=[
   question:"Please evaluate new bilateral foot numbness and advise on workup.",
   status:"failed",time:"12:11",
   task:{verb:"Review",src:"system",head:"Page not delivered",
-    sys:"Pager 24210 (Grace Lee, MD) is signed out. Her Neurology shift ended at 12:00 PM. The page was not delivered.",short:"Pager 24210 is signed out (shift ended 12:00 PM). The page was not delivered.",
-    body:"The consult order was created at 12:10 PM. The paging system returned an error at 12:11 PM.",button:"Review and resend",alt:"View service contact",doneLabel:"Page resent"},
+    sys:"Pager 24210 (Grace Lee, MD) is signed out. Her Neurology shift ended at 12:00 PM. The page was not delivered.",short:"Not delivered: pager 24210 signed out at the 12:00 PM shift change. Choose who’s on call now.",
+    body:"The consult order was created at 12:10 PM. The paging system returned an error at 12:11 PM.",button:"Choose recipient",alt:"View service contact",doneLabel:"Page resent"},
   events:[["12:10","Order created","Epic order","ok"],["12:11","Page failed","Paging system: pager 24210 signed out (shift ended)","red"]]},
  /* archived */
  {id:"a1",pt:"C",svc:"Gastroenterology",who:"Lucas Ortega, MD",urg:"Routine",reason:"Iron deficiency anemia",ordered:"06:50",archived:true,
@@ -3180,7 +3180,7 @@ const S={pview:(()=>{try{return localStorage.getItem("seal-pview")==="full"?"ful
 let DS=document.documentElement.dataset.ds==="prev"?"prev":"figma";
 let HYB=document.documentElement.dataset.hyb==="1"; /* Hybrid: original layout + Figma attention cards */
 const FGT={failed:"red",redirected:"amber",info:"amber",recs:"info",paged:"gray",redirsent:"gray",accepted:"gray",infoupd:"gray",done:"gray"}; /* red = blocked · amber = waiting on you · blue = new for you to review · gray = waiting on others or done */
-const FG_BTN={failed:"Review and resend",redirected:"Review redirect",info:"Add info"};
+const FG_BTN={failed:"Choose recipient",redirected:"Review suggestion",info:"Add info"};
 const FG_DOT={red:"red",amber:"amber",info:"blue",gray:"gray"};
 const verbOf=c=>(DS==="figma"||HYB)&&FG_BTN[c.status]?FG_BTN[c.status]:c.task.verb;
 const toneOf=k=>DS==="figma"?FG_DOT[FGT[k]]:ST[k].c;
