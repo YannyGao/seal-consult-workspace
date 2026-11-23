@@ -855,23 +855,24 @@ body.ncp-open .pcbtn,body.ncp-open .pc,body.ncp-open #pc{display:none!important}
 /* inside New consult, the workboard's automatic number wrapper inherits our type */
 .ncp .ds-mono,.nc-modal .ds-mono{font:inherit!important;letter-spacing:inherit!important;margin:0!important;padding:0!important;color:inherit}
 
-/* pick mode: the clinician's own question, with starters and guideline tips */
-.npq{margin-top:20px}
-.npq-req{font-style:normal;color:var(--ink3)}
-.npq textarea{width:100%;border:1px solid var(--hair);border-radius:10px;padding:10px 12px;font:inherit;font-size:14px;line-height:20px;background:#fff;resize:vertical;min-height:72px}
-.npq textarea:focus{outline:0;border-color:var(--ink);box-shadow:0 0 0 3px rgba(31,35,40,.07)}
-.npq-st{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin-top:10px}
-.npq-stl{font-size:12.5px;color:var(--ink3);margin-right:2px}
-.npq-tips{margin-top:14px;padding:12px 14px;border:1px solid var(--hair);border-radius:12px;background:var(--soft,#F7F8FA)}
-.npq-th{font-size:12.5px;font-weight:500;color:var(--ink2);margin-bottom:8px}
-.npq-tips ul{list-style:none;margin:0;padding:0;display:grid;gap:7px}
-.npq-t{display:flex;align-items:flex-start;gap:8px;font-size:13px;line-height:19px;color:var(--ink2)}
-.npq-ic{flex:none;display:inline-grid;place-items:center;width:18px;height:18px;margin-top:1px;border-radius:50%;font-size:12px;font-weight:600;color:var(--ink3)}
-.npq-ic svg{width:12px;height:12px}
-.npq-ok .npq-ic{background:var(--ink);color:#fff}
-.npq-warn .npq-ic{background:#FFF4E0;color:#8A5A00}
-.npq-w{display:block;margin-top:2px;font-weight:500;color:#8A5A00}
-.npq-ok .npq-ic svg path{stroke:#fff!important}
-.npq-note{margin:6px 0 0;font-size:12.5px;color:var(--ink3)}
-.npq-st .ncc-ex{height:auto;min-height:28px;padding:4px 10px;text-align:left;line-height:18px}
-.npq-ok .npq-ic svg path{stroke-dashoffset:0!important;stroke-width:2.2px!important}
+/* step 3 opens as the page being composed: filled header + the clinician's question; the template drafts after */
+.nct-aside[hidden],.ncq-mirror{display:none!important}
+.nct-grid.nc-predraft{grid-template-columns:minmax(0,1fr)}
+.nct-grid.nc-predraft .nct-main{max-width:720px}
+.ncq{border:1px solid var(--hair);border-radius:16px;background:#fff;padding:16px 18px 14px;box-shadow:0 1px 2px rgba(16,24,40,.04)}
+.ncq-to{display:flex;align-items:center;gap:10px;padding-bottom:12px;border-bottom:1px solid var(--hair2,#EEF0F3)}
+.ncq-who{display:flex;flex-direction:column;line-height:18px}
+.ncq-who small{font-size:12px;color:var(--ink3)}
+.ncq-who b{font-size:14px;font-weight:600;color:var(--ink)}
+.ncq-who span{font-size:12.5px;color:var(--ink2)}
+.ncq-meta{padding:12px 0;border-bottom:1px solid var(--hair2,#EEF0F3);display:grid;gap:4px}
+.ncq-row{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 10px;font-size:13.5px;color:var(--ink2)}
+.ncq-row b{font-weight:600;color:var(--ink)}
+.ncq-row .nc-link{margin-left:auto;font-size:12.5px}
+.ncq-sub{font-size:12.5px;color:var(--ink3)}
+.ncq-l{display:block;margin:14px 0 8px;font:500 14px/20px var(--sans);color:var(--ink)}
+.ncq textarea{width:100%;border:1px solid var(--hair);border-radius:10px;padding:10px 12px;font:inherit;font-size:14.5px;line-height:21px;background:#fff;resize:vertical;min-height:84px}
+.ncq textarea:focus{outline:0;border-color:var(--ink);box-shadow:0 0 0 3px rgba(31,35,40,.07)}
+.ncq-hint{margin:8px 0 0;font-size:13px;line-height:18px;color:#8A5A00}
+.ncq-hint:empty{display:none}
+#genWrap:not(:empty),#secs:not([hidden]){margin-top:16px}
