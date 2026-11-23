@@ -145,6 +145,12 @@ function recordsFor(k){
   return r.map(x=>({...x,on:!x.gap&&want(x)}));
 }
 
+/* chips and the Chart records checkboxes always agree: cited records start attached; an unattached one shows as such */
+const FIELD_NAME={summary:"One-line summary",history:"Hospital course",cardio:"Cardiac history",meds:"Medications",labs:"ECG, telemetry and labs",testing:"Recent testing"};
+const citedIds=()=>new Set(Object.keys(SRC_OF).filter(k=>root&&root.querySelector(`.nct-f[data-nck="${k}"].nc-has-src`)).flatMap(k=>SRC_OF[k]));
+const usedIn=id=>Object.keys(SRC_OF).filter(k=>SRC_OF[k].includes(id)&&root&&root.querySelector(`.nct-f[data-nck="${k}"].nc-has-src`)).map(k=>FIELD_NAME[k]).join(", ");
+function syncChips(){if(!root||!NC.recs)return;root.querySelectorAll(".nc-chip[data-ncsrcdoc]").forEach(b=>{const r=NC.recs.find(x=>x.id===b.dataset.ncsrcdoc),off=!r||!r.on;b.classList.toggle("nc-chip-off",off);
+  const nm=b.querySelector("span").textContent;b.title=off?`${nm} isn’t attached to this consult. Open it, or tick it in Chart records.`:`Open ${nm} (attached)`})}
 /* which chart records each drafted field comes from (shown as chips that open the record) */
 const SRC_OF={summary:["hp"],history:["hp"],cardio:["hp"],meds:["meds"],labs:["ecg","tele","labs"],testing:["test"]};
 const AI_FIELDS=["summary","history"];
@@ -682,7 +688,7 @@ function paint3(){
     if(restore)pane.querySelectorAll(".nct-sec").forEach(x=>x.style.animation="none");
     const rad=restore?restore.radios:{};
     Object.entries(rad).forEach(([n,v])=>{const r=pane.querySelector(`input[name=${n}][value="${v}"]`);if(r)r.checked=true});
-    if(!restore||!NC.recs||NC.recsPt!==NC.pt){NC.recs=recordsFor(NC.pt);NC.recsPt=NC.pt}renderRecs();bindAddFile();
+    if(!restore||!NC.recs||NC.recsPt!==NC.pt){NC.recs=recordsFor(NC.pt);NC.recsPt=NC.pt;const cited=citedIds();NC.recs.forEach(r=>{if(!r.gap&&cited.has(r.id))r.on=true})}renderRecs();bindAddFile();
     urgNote();summary3();NC.genQ=restore?restore.genQ:f.question;pane.querySelectorAll(".nc-lock input").forEach(i=>{i.readOnly=true;i.title="From the patient’s chart"});
     const need={};if(c.miss.cardio)need.cardio=["Add prior cardiac history and the cardiologist, or “None known”.",`Not in the chart — ${c.miss.cardio}.`];if(c.miss.testing)need.testing=["Type a summary, or upload the report in Chart records below.",`Not in the chart — ${c.miss.testing}.`];
     NC.filling=!restore;
@@ -717,8 +723,9 @@ function bindAddFile(){
 function renderRecs(){
   const ul=root&&root.querySelector("#ncRecs");if(!ul)return;
   ul.innerHTML=NC.recs.map((r,i)=>r.gap?`<li class="nct-rec nct-rec-gap"><span class="nct-rec-ic nct-rec-ic-gap">!</span><div class="nct-rec-t"><b>${esc(r.title)}</b><span>Not in Epic — ${esc(r.why)}. Upload it if you have it.</span></div><button type="button" class="ncp-btn nc-ghost nc-sm" data-ncup="${i}">${I.upload}Upload file</button></li>`:
-    `<li class="nct-rec${r.on?"":" nct-rec-off"}"><label class="nct-rec-cb"><input type="checkbox" data-ncrec="${i}"${r.on?" checked":""} aria-label="Include ${esc(r.title)}"></label><span class="nct-rec-ic">${I[r.icon]}</span><div class="nct-rec-t"><b>${esc(r.title)}</b><span>${esc(r.src)}${r.date?" · "+esc(r.date):""}</span></div><button type="button" class="nc-link" data-ncprev="${i}">Preview</button></li>`).join("");
-  ul.onchange=e=>{const cb=e.target.closest("[data-ncrec]");if(!cb)return;const r=NC.recs[+cb.dataset.ncrec];r.on=cb.checked;cb.closest(".nct-rec").classList.toggle("nct-rec-off",!r.on);summary3()};
+    `<li class="nct-rec${r.on?"":" nct-rec-off"}"><label class="nct-rec-cb"><input type="checkbox" data-ncrec="${i}"${r.on?" checked":""} aria-label="Include ${esc(r.title)}"></label><span class="nct-rec-ic">${I[r.icon]}</span><div class="nct-rec-t"><b>${esc(r.title)}</b><span>${esc(r.src)}${r.date?" · "+esc(r.date):""}</span>${usedIn(r.id)?`<span class="nct-rec-use">Source for ${esc(usedIn(r.id))}</span>`:""}</div><button type="button" class="nc-link" data-ncprev="${i}">Preview</button></li>`).join("");
+  syncChips();
+  ul.onchange=e=>{const cb=e.target.closest("[data-ncrec]");if(!cb)return;const r=NC.recs[+cb.dataset.ncrec];r.on=cb.checked;cb.closest(".nct-rec").classList.toggle("nct-rec-off",!r.on);syncChips();summary3()};
   ul.onclick=async e=>{
     const pv=e.target.closest("[data-ncprev]");if(pv){openDoc(NC.recs[+pv.dataset.ncprev]);return}
     const up=e.target.closest("[data-ncup]");if(!up)return;
