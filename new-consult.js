@@ -320,6 +320,16 @@ function paint(){
 }
 const titleText=()=>NC.pt?`Consult for ${esc(PT[NC.pt].name)}`:"New consult";
 function setTitle(){const h=root&&root.querySelector("#ncTitle");if(!h)return;h.classList.remove("nc-swap");void h.offsetWidth;h.innerHTML=titleText();h.classList.add("nc-swap")}
+/* bring what the user's action just revealed into view, scrolling only as much as needed and never
+   under the sticky footer; earlier content stays above. top:N aligns the element N px below the top
+   so the end of the previous section still peeks in. */
+function reveal(el,o={}){
+  if(!root||!el)return;const foot=root.querySelector("#ncpAct"),fh=foot?foot.offsetHeight:0;
+  const sr=root.getBoundingClientRect(),r=el.getBoundingClientRect(),vt=sr.top+16,vb=sr.bottom-fh-12;
+  let d=0;if(o.top!=null)d=r.top-vt-o.top;else if(r.bottom>vb)d=Math.min(r.bottom-vb,r.top-vt);else if(r.top<vt)d=r.top-vt;
+  if(Math.abs(d)>2)root.scrollBy({top:d,behavior:RM?"auto":"smooth"});
+  if(o.focus)o.focus.focus({preventScroll:true});
+}
 function actions(hint,btns){root.querySelector("#ncpAct").innerHTML=`<span class="ncp-hint">${hint||""}</span>${btns}`}
 function lockAhead(){NC.maxStep=NC.step;root.querySelectorAll("[data-ncstep]").forEach(b=>{const n=+b.dataset.ncstep;if(n>NC.step){b.disabled=true;b.classList.remove("done");b.querySelector(".nc-num").textContent=n}})}
 const ptChip=()=>{const p=PT[NC.pt];return `<div class="nc-ptchip"><span class="nc-ini">${initials(p.name)}</span><b>${esc(p.name)}</b><span class="nc-ptid">${esc(p.room)} · ${esc(p.mrn)}</span><button type="button" data-ncgo="1">Change</button></div>`};
@@ -573,6 +583,7 @@ async function paintOncall(){
   box.querySelectorAll(".nco-it").forEach(b=>b.onclick=()=>{NC.clin=b.dataset.ncc;box.querySelectorAll(".nco-it").forEach(x=>{x.setAttribute("aria-checked",x===b);x.classList.add("nc-settled")});
     box.querySelector("#ncoBusy").hidden=!list.find(x=>x[0]===NC.clin&&x[2]!=="av");act2()});
   act2();
+  if(fresh)setTimeout(()=>reveal(box.querySelector(".nco")),T(list.length*80+60));
 }
 function act2(){
   const ok=NC.route!=="adm"&&ocReady()&&NC.clin&&root.querySelector(".nco-list");
@@ -642,11 +653,11 @@ function paint3(){
   const key=`${NC.pt}|${NC.route}|${NC.clin}`,restore=NC.draft&&NC.draft.key===key&&NC.draft.qsrc===q0?NC.draft:null;
   const urgV=()=>pane.querySelector("input[name=ncurg]:checked")?.value;
   {const f0=buildFields();["name","mrn","room","team","req","cb","at","need"].forEach(k=>{const el=pane.querySelector("#f-"+k);if(el)el.value=f0[k]||""});pane.querySelectorAll(".nc-lock input").forEach(i=>{i.readOnly=true;i.title="From the patient’s chart"})}
-  pane.querySelectorAll("input[name=ncurg]").forEach(el=>el.addEventListener("change",()=>{urgNote();if(drafted())summary3();else preFoot()}));
+  pane.querySelectorAll("input[name=ncurg]").forEach(el=>el.addEventListener("change",()=>{urgNote();if(drafted())summary3();else preFoot();setTimeout(()=>reveal(pane.querySelector('[data-nck="urg"]')),T(60))}));
   if(urgV())urgNote();
   const preFoot=()=>{const ready=qIn.value.trim()&&urgV();actions(ready?"":!qIn.value.trim()?"Write your question to draft the request.":"Choose an urgency to draft the request.",`<button type="button" class="ncp-btn nc-ghost" id="b3">Back</button><button type="button" class="ncp-btn" id="ncqGo"${ready?"":" disabled"}>Draft request</button>`);
-    root.querySelector("#b3").onclick=()=>go(2);root.querySelector("#ncqGo").onclick=()=>{setQ(qIn.value.trim());draft(false)}};
-  if(restore){if(restore.vals.question)qIn.value=restore.vals.question;Object.entries(restore.radios||{}).forEach(([n,v])=>{const r=pane.querySelector(`input[name=${n}][value="${v}"]`);if(r)r.checked=true});urgNote();draft(true)}else{preFoot();showHint();setTimeout(()=>qIn.focus({preventScroll:true}),T(60))}
+    root.querySelector("#b3").onclick=()=>go(2);root.querySelector("#ncqGo").onclick=()=>{setQ(qIn.value.trim());draft(false);setTimeout(()=>reveal(pane.querySelector("#genWrap")),T(40))}};
+  if(restore){if(restore.vals.question)qIn.value=restore.vals.question;Object.entries(restore.radios||{}).forEach(([n,v])=>{const r=pane.querySelector(`input[name=${n}][value="${v}"]`);if(r)r.checked=true});urgNote();draft(true)}else{preFoot();showHint();setTimeout(()=>reveal(qIn.closest("section"),{focus:qIn}),T(120))}
   function draft(fromRestore){
   pane.querySelector(".nct-grid").classList.remove("nc-predraft");
   const f=buildFields();
@@ -658,6 +669,7 @@ function paint3(){
     if(!restore)for(const [l,i] of [["Reading the patient information","doc"],["Drafting a one-line summary","pen"],["Linking results to your question","link"],["Filling in the request","form"]]){th.set(l+"…",i);await sleep(T(620));if(!root||NC.step!==3||run!==NC.sess)return}
     NC.filling=!restore;
     pane.querySelector("#gen")?.remove();pane.querySelector("#secs").hidden=false;pane.querySelector(".nct-aside").hidden=false;
+    if(!restore)setTimeout(()=>reveal(pane.querySelector("#secs"),{top:72}),0);
     if(restore)pane.querySelectorAll(".nct-sec").forEach(x=>x.style.animation="none");
     const rad=restore?restore.radios:{};
     Object.entries(rad).forEach(([n,v])=>{const r=pane.querySelector(`input[name=${n}][value="${v}"]`);if(r)r.checked=true});
@@ -679,6 +691,7 @@ function paint3(){
 
 
     validate();summary3();
+    if(!restore){const h=pane.querySelector("#ncgAi");if(h){h.setAttribute("tabindex","-1");h.focus({preventScroll:true})}}
   })();
   }
 }
