@@ -437,7 +437,7 @@ function paintAsk(){
   body.innerHTML=`<div class="ncc${NC.chat.length?" nc-started":""}" id="ncc"><div class="ncc-hero"><h3>What do you need from the consultant?</h3><p>Describe the question in your own words. We’ll ask a couple of things, then suggest where it goes.</p></div>
     <div class="ncc-log" id="nccLog"></div>
     <div class="ncc-comp"><div class="ncc-box"><textarea id="nccIn" rows="2" placeholder="e.g. New AF with RVR, rates 130s despite metoprolol — rate vs rhythm control and anticoagulation?" aria-label="Consult question"></textarea>
-      <div class="ncc-tools"><button type="button" class="ncc-ex" data-ncex="Rising troponin 34 → 91 with new T-wave inversions in a patient with prior PCI. Is this ACS or demand?">Try: rising troponin</button><button type="button" class="ncc-ex" data-ncex="Pacemaker patient with 2.8 second pauses on telemetry overnight, needs device check">Try: pacemaker pauses</button><button type="button" class="ncc-send" id="nccSend" aria-label="Send question" disabled>${I.up}</button></div></div></div></div>`;
+      <div class="ncc-tools">${CHART[NC.pt]&&CHART[NC.pt].why?`<button type="button" class="ncc-ex" data-ncex="${esc(CHART[NC.pt].why)}. What do you recommend?">Try an example for ${esc(PT[NC.pt].name.split(" ")[0])}</button>`:""}<button type="button" class="ncc-send" id="nccSend" aria-label="Send question" disabled>${I.up}</button></div></div></div></div>`;
   const log=body.querySelector("#nccLog"),inp=body.querySelector("#nccIn"),send=body.querySelector("#nccSend"),wrap=body.querySelector("#ncc"),comp=body.querySelector(".ncc-comp");
   const setH=()=>wrap.style.setProperty("--ch",comp.offsetHeight+"px");setH();
   NC.chat.forEach(m=>log.insertAdjacentHTML("beforeend",m.html));log.querySelectorAll(".ncc-opts").forEach(o=>o.classList.add("nc-used"));bindRouteCard(log);
@@ -587,47 +587,45 @@ const lc=t=>/^[A-Z][a-z]/.test(t)?t[0].toLowerCase()+t.slice(1):t;
 const defUrg=()=>NC.unstable?"Unstable":(CHART[NC.pt].risk?"Urgent":NC.urg);
 function buildFields(){
   const p=PT[NC.pt],c=CHART[NC.pt];const q=((NC.mode==="pick"?NC.pickQ:NC.question)||"").trim();
-  return {name:p.name,mrn:p.mrn,room:p.room,team:TEAM,req:`${ME} · Attending hospitalist`,cb:CALLBACK,at:`Today · ${fmtNow()}`,need:NEED_BY[defUrg()],
+  return {name:p.name,mrn:p.mrn,room:p.room,team:TEAM,req:`${ME} · Attending hospitalist`,cb:CALLBACK,at:`Today · ${fmtNow()}`,need:NEED_BY[(root&&root.querySelector("input[name=ncurg]:checked")?.value)||defUrg()],
     summary:`${c.age}-year-old ${c.sex==="F"?"woman":"man"} with ${/^No known/.test(c.hx)?"no known cardiac history":lc(c.hx)}, admitted for ${lc(c.adm)}.`,
-    question:q,history:`Cardiac concern: ${c.why}. ${c.hx}. Current medications: ${c.meds}.`,
-    results:`ECG: ${c.ecg}. Telemetry: ${c.tele}. Labs: ${c.labs}.`,testing:c.miss.testing?"":c.testing,
-    cardio:c.miss.cardio?"":`${c.hx} · Cardiologist: ${c.cardio}`,tele:c.tele,labs:c.labs,pamf:c.pamf,ecgOk:c.ecgOk};
+    question:q,history:`${c.why}.`,meds:c.meds,
+    labs:`ECG: ${c.ecg}\nTelemetry: ${c.tele}\nLabs: ${c.labs}`,testing:c.miss.testing?"":c.testing,
+    cardio:c.miss.cardio?"":`${c.hx} · Cardiologist: ${c.cardio}`,pamf:c.pamf,ecgOk:c.ecgOk};
 }
 function paint3(){
   const pane=root.querySelector("#ncpPane"),f=buildFields(),R=ROUTES[NC.route];
   const src=t=>`<span class="nct-src">${I.sparkSm}${t}</span>`;
   const fld=(k,label,req,cls,ta,s)=>`<div class="nct-f ${cls||""}" data-nck="${k}"><label for="f-${k}">${label}${req?" <i>*</i>":""}</label>${ta?`<textarea id="f-${k}" rows="${ta}"${req?" data-ncreq":""}></textarea>`:`<input id="f-${k}" type="text"${req?" data-ncreq":""}>`}${s?src(s):""}</div>`;
   const p=PT[NC.pt],cc=CHART[NC.pt],q0=(NC.mode==="pick"?NC.pickQ:NC.question)||"";
+  const risk=cc.risk,u0=NC.unstable?"Unstable":"";
+  const grp=(id,t,sub,body,cls)=>`<section class="nct-sec ncg ${cls||""}" aria-labelledby="${id}"><div class="nct-sh"><span id="${id}">${t}</span>${sub?`<span class="nct-sh-sub">${sub}</span>`:""}</div><div class="nct-body">${body}</div></section>`;
   pane.innerHTML=`<div class="nct-grid nc-predraft"><div class="nct-main">
-    <section class="ncq" aria-labelledby="ncqL">
+    <div class="ncq-head">
       <div class="ncq-to">${av(NC.clin,32)}<div class="ncq-who"><small>Page to</small><b>${esc(NC.clin)}</b><span>${esc(R.name)} · ${esc(pagerText(R))}</span></div></div>
       <div class="ncq-meta"><div class="ncq-row"><b>${esc(p.name)}</b><span>${cc.age}${esc(cc.sex)} · MRN ${esc(p.mrn)} · Rm ${esc(p.room)}</span><button type="button" class="nc-link" data-ncgo="1">Change</button></div>
-        <div class="ncq-row ncq-sub" id="ncqCb">Callback ${esc(CALLBACK)} · ${esc(ME)}</div></div>
-      <label class="ncq-l" id="ncqL" for="ncqIn">What’s your concern, and what do you need from cardiology?</label>
-      <textarea id="ncqIn" rows="3" aria-describedby="ncqHint" placeholder="e.g. New chest pain and SOB, trop 34 → 91, concern for NSTEMI. Need help with ischemic workup and anticoagulation."></textarea>
-      <p class="ncq-hint" id="ncqHint" aria-live="polite"></p>
-    </section>
+        <div class="ncq-row ncq-sub"><label for="f-cb">Callback</label><input id="f-cb" class="ncq-cb" type="text" data-ncreq aria-label="Callback number"><span>· ${esc(ME)}</span></div></div>
+    </div>
+    <div hidden>${fld("name","Patient name",1)}${fld("mrn","MRN",1)}${fld("room","Room",1)}${fld("team","Primary team",1)}${fld("req","Requester",1)}${fld("at","Requested",1)}${fld("need","Needed by",0)}${fld("question","Consult question",1,"",3)}</div>
+    ${grp("ncgReq","Your request","",`
+      <div class="nct-f" data-nck="question"><label for="ncqIn">What’s your concern, and what do you need from cardiology? <i>*</i></label>
+        <textarea id="ncqIn" rows="3" aria-describedby="ncqHint" placeholder="What’s changed, what you’ve tried, and the decision you need help with"></textarea>
+        <p class="ncq-hint" id="ncqHint" aria-live="polite"></p></div>
+      <div class="nct-f" data-nck="urg"><label id="ncUrgL">Urgency <i>*</i></label>
+        <div class="nct-radios" role="radiogroup" aria-labelledby="ncUrgL"><label><input type="radio" name="ncurg" value="Routine"${u0==="Routine"?" checked":""}>Routine</label><label><input type="radio" name="ncurg" value="Urgent">Urgent</label><label class="nc-bad"><input type="radio" name="ncurg" value="Unstable"${u0==="Unstable"?" checked":""}>Patient unstable — activate local emergency response</label></div>
+        ${risk?`<p class="ncq-risk">The chart shows ${esc(risk)}.</p>`:""}
+        <div id="urgNote"></div></div>`,"ncg-req")}
     <div id="genWrap"></div>
     <div id="secs" hidden>
-      <section class="nct-sec" style="animation-delay:0ms"><div class="nct-sh"><span class="nc-num">1</span>Patient and requester</div><div class="nct-body">
-        ${fld("name","Patient name",1,"nc-s3 nc-lock")}${fld("mrn","MRN",1,"nc-s2 nc-lock")}${fld("room","Room",1,"nc-s1 nc-lock")}
-        ${fld("team","Primary team",1,"nc-s3")}${fld("req","Requester name and role",1,"nc-s3")}
-        ${fld("cb","Callback number",1,"nc-s2")}${fld("at","Requested date and time",1,"nc-s2")}${fld("need","Needed by",0,"nc-s2")}</div></section>
-      <section class="nct-sec" style="animation-delay:90ms"><div class="nct-sh"><span class="nc-num">2</span>Clinical request</div><div class="nct-body">
-        ${fld("summary","One-line patient summary",1,"",2,"From the chart")}
-        ${fld("question","Focused consult question",1,"ncq-mirror",3,"Your question")}
-        ${fld("history","Relevant history, treatments, and recent change",0,"",3,"From the chart")}
-        ${fld("results","Pertinent results available now and tests still pending",0,"",3,"From the chart")}
-        ${fld("testing","Recent cardiac testing (Stanford or outside)",0,"",2,"From the chart")}</div></section>
-      <section class="nct-sec" style="animation-delay:180ms"><div class="nct-sh"><span class="nc-num">3</span>Urgency and safety</div><div class="nct-body"><div class="nct-f">
-        <div class="nct-radios" role="radiogroup" aria-label="Urgency"><label><input type="radio" name="ncurg" value="Routine">Routine</label><label><input type="radio" name="ncurg" value="Urgent">Urgent</label><label class="nc-bad"><input type="radio" name="ncurg" value="Unstable">Patient unstable — activate local emergency response</label></div>
-        <div id="urgNote"></div></div></div></section>
-      <section class="nct-sec" style="animation-delay:270ms"><div class="nct-sh"><span class="nc-num">4</span>Cardiovascular details</div><div class="nct-body">
-        <div class="nct-f nc-s2"><label>PAMF patient</label><div class="nct-radios"><label><input type="radio" name="ncpamf" value="yes">Yes</label><label><input type="radio" name="ncpamf" value="no">No</label></div></div>
-        <div class="nct-f nc-s4" data-nck="ecg"><label>Updated ECG</label><div class="nct-radios"><label><input type="radio" name="ncecg" value="yes">Available</label><label><input type="radio" name="ncecg" value="no">Not available</label></div></div>
-        ${fld("cardio","Prior cardiac history and cardiologist",1,"",2,"From the chart")}
-        ${fld("tele","Telemetry issue",0,"nc-s3")}${fld("labs","Pertinent cardiac labs and trend",1,"nc-s3")}</div></section>
-      <section class="nct-sec" style="animation-delay:360ms"><div class="nct-sh"><span class="nc-num">5</span>Chart records<span class="nct-sh-sub">Sent to the consultant as files</span></div><ul class="nct-recs" id="ncRecs"></ul></section>
+      ${grp("ncgAi","Drafted for you","AI-written from the chart · review before sending",`
+        ${fld("summary","One-line summary",1,"",2,"Drafted from the chart")}
+        ${fld("history","Hospital course and what’s been tried",0,"",2,"Drafted from the chart")}`,"ncg-ai")}
+      ${grp("ncgChart","From the chart","Copied from the record",`
+        ${fld("cardio","Cardiac history and cardiologist",1,"",2,"From the chart")}
+        ${fld("meds","Medications",0,"",2,"From the chart")}
+        ${fld("labs","ECG, telemetry and cardiac labs",1,"",3,"From the chart")}
+        ${fld("testing","Recent cardiac testing (Stanford or outside)",0,"",2,"From the chart")}
+        <div class="nct-f"><label>Records sent as files</label><ul class="nct-recs" id="ncRecs"></ul></div>`,"ncg-chart")}
     </div></div>
     <aside class="nct-aside" aria-label="Specialty checklist" hidden><div class="nct-cl"><div class="nct-cl-h"><h3>Specialty checklist</h3><span class="nct-cl-n" id="ncCkN">0/6</span></div><div class="nct-cl-bar"><i id="ncCkBar"></i></div><p>Updates as the request fills in and as you edit.</p><ul class="nct-ck" id="ncCk"></ul></div></aside></div>`;
   bindChip();
@@ -638,9 +636,13 @@ function paint3(){
     const fq=pane.querySelector("#f-question");if(fq&&drafted()){fq.value=qIn.value;fq.dispatchEvent(new Event("input",{bubbles:true}))}else preFoot()});
   qIn.addEventListener("blur",showHint);
   const key=`${NC.pt}|${NC.route}|${NC.clin}`,restore=NC.draft&&NC.draft.key===key&&NC.draft.qsrc===q0?NC.draft:null;
-  const preFoot=()=>{actions("",`<button type="button" class="ncp-btn nc-ghost" id="b3">Back</button><button type="button" class="ncp-btn" id="ncqGo"${qIn.value.trim()?"":" disabled"}>Draft request</button>`);
+  const urgV=()=>pane.querySelector("input[name=ncurg]:checked")?.value;
+  pane.querySelector("#f-cb").value=CALLBACK;
+  pane.querySelectorAll("input[name=ncurg]").forEach(el=>el.addEventListener("change",()=>{urgNote();if(drafted())summary3();else preFoot()}));
+  if(urgV())urgNote();
+  const preFoot=()=>{const ready=qIn.value.trim()&&urgV();actions(ready?"":!qIn.value.trim()?"Write your question to draft the request.":"Choose an urgency to draft the request.",`<button type="button" class="ncp-btn nc-ghost" id="b3">Back</button><button type="button" class="ncp-btn" id="ncqGo"${ready?"":" disabled"}>Draft request</button>`);
     root.querySelector("#b3").onclick=()=>go(2);root.querySelector("#ncqGo").onclick=()=>{setQ(qIn.value.trim());draft(false)}};
-  if(restore){if(restore.vals.question)qIn.value=restore.vals.question;draft(true)}else{preFoot();showHint();setTimeout(()=>qIn.focus({preventScroll:true}),T(60))}
+  if(restore){if(restore.vals.question)qIn.value=restore.vals.question;Object.entries(restore.radios||{}).forEach(([n,v])=>{const r=pane.querySelector(`input[name=${n}][value="${v}"]`);if(r)r.checked=true});urgNote();draft(true)}else{preFoot();showHint();setTimeout(()=>qIn.focus({preventScroll:true}),T(60))}
   function draft(fromRestore){
   pane.querySelector(".nct-grid").classList.remove("nc-predraft");
   const f=buildFields();
@@ -653,14 +655,14 @@ function paint3(){
     NC.filling=!restore;
     pane.querySelector("#gen")?.remove();pane.querySelector("#secs").hidden=false;pane.querySelector(".nct-aside").hidden=false;
     if(restore)pane.querySelectorAll(".nct-sec").forEach(x=>x.style.animation="none");
-    const rad=restore?restore.radios:{ncurg:defUrg(),ncpamf:f.pamf?"yes":"no",ncecg:f.ecgOk?"yes":"no"};
+    const rad=restore?restore.radios:{};
     Object.entries(rad).forEach(([n,v])=>{const r=pane.querySelector(`input[name=${n}][value="${v}"]`);if(r)r.checked=true});
     if(!restore||!NC.recs||NC.recsPt!==NC.pt){NC.recs=recordsFor(NC.pt);NC.recsPt=NC.pt}renderRecs();
     urgNote();summary3();NC.genQ=restore?restore.genQ:f.question;pane.querySelectorAll(".nc-lock input").forEach(i=>{i.readOnly=true;i.title="From the patient’s chart"});
     const need={};if(c.miss.cardio)need.cardio=["Add prior cardiac history and the cardiologist, or “None known”.",`Not in the chart — ${c.miss.cardio}.`];if(c.miss.testing)need.testing=["Type a summary, or upload the report in Chart records below.",`Not in the chart — ${c.miss.testing}.`];
     NC.filling=!restore;
-    for(const k of ["name","mrn","room","team","req","cb","at","need","summary","question","history","results","testing","cardio","tele","labs"]){
-      const el=pane.querySelector("#f-"+k);if(!el||!root||NC.step!==3){NC.filling=false;return}const v=restore?restore.vals[k]:(f[k]||""),w=el.closest(".nct-f");
+    for(const k of ["name","mrn","room","team","req","cb","at","need","summary","question","history","cardio","meds","labs","testing"]){
+      const el=pane.querySelector("#f-"+k);if(!el||!root||NC.step!==3){NC.filling=false;return}const v=restore?restore.vals[k]:(f[k]||""),w=el.closest(".nct-f")||el.parentElement;
       if(need[k]){el.placeholder=need[k][0];const sEl=w.querySelector(".nct-src");if(sEl)sEl.remove()}
       if(restore){el.value=v??"";continue}
       w.classList.add("nc-fill");
@@ -669,9 +671,8 @@ function paint3(){
     }
     NC.filling=false;
     pane.querySelectorAll("input,textarea").forEach(el=>el.addEventListener("input",()=>summary3()));
-    const cbIn=pane.querySelector("#f-cb");if(cbIn)cbIn.addEventListener("input",()=>{const h=pane.querySelector("#ncqCb");if(h)h.textContent=`Callback ${cbIn.value.trim()||"—"} · ${ME}`});
-    pane.querySelectorAll("input[name=ncurg]").forEach(el=>el.addEventListener("change",()=>{urgNote();summary3()}));
-    pane.querySelectorAll("input[name=ncpamf],input[name=ncecg]").forEach(el=>el.addEventListener("change",()=>summary3()));
+
+
     validate();summary3();
   })();
   }
@@ -703,8 +704,8 @@ function openDoc(r){
 }
 function saveDraft(){
   if(!root||!root.querySelector("#f-question")||root.querySelector("#gen")||!drafted()||NC.filling)return;
-  const vals={};["name","mrn","room","team","req","cb","at","need","summary","question","history","results","testing","cardio","tele","labs"].forEach(k=>vals[k]=root.querySelector("#f-"+k).value);
-  const radios={};["ncurg","ncpamf","ncecg"].forEach(n=>{const r=root.querySelector(`input[name=${n}]:checked`);if(r)radios[n]=r.value});
+  const vals={};["name","mrn","room","team","req","cb","at","need","summary","question","history","cardio","meds","labs","testing"].forEach(k=>vals[k]=root.querySelector("#f-"+k).value);
+  const radios={};["ncurg"].forEach(n=>{const r=root.querySelector(`input[name=${n}]:checked`);if(r)radios[n]=r.value});
   NC.draft={key:`${NC.pt}|${NC.route}|${NC.clin}`,vals,radios,genQ:NC.genQ,qsrc:(NC.mode==="pick"?NC.pickQ:NC.question)||""};
 }
 function urgNote(){const v=root.querySelector("input[name=ncurg]:checked")?.value,n=root.querySelector("#urgNote");if(!n||n.dataset.v===v)return;const quiet=!!n.dataset.v;n.dataset.v=v;n.classList.toggle("nc-quiet",quiet);
@@ -719,19 +720,19 @@ document.addEventListener("click",e=>{const b=e.target.closest&&e.target.closest
 function validate(){
   if(!root||root.querySelector("#gen")||!drafted())return false;
   let ok=true;const uu=root.querySelector("input[name=ncurg]:checked")?.value,needRrt=uu==="Unstable"&&!NC.rrt;
-  root.querySelectorAll("[data-ncreq]").forEach(el=>{const miss=!el.value.trim(),w=el.closest(".nct-f");w.classList.toggle("nc-miss",miss&&!w.classList.contains("nc-need"));if(miss)ok=false});
+  root.querySelectorAll("[data-ncreq]").forEach(el=>{const miss=!el.value.trim(),w=el.closest(".nct-f")||el;w.classList.toggle("nc-miss",miss&&!w.classList.contains("nc-need"));if(miss)ok=false});
   const ckOk=NC.ckDone===true;
   act3(false,ok&&ckOk&&!needRrt,needRrt,!ckOk?NC.ckCount:null);return ok&&ckOk&&!needRrt;
 }
 const TESTING_RE=/testing|\btte\b|\btee\b|\becho|holter|\bmri\b|stress|\bcath|angiogra|no prior/i;
 /* each checklist item = specific fields; an item is open only when one of its fields is actually missing */
 function ckItems(){
-  const c=CHART[NC.pt],q=val("question"),abn=abnOf(c),ecg=!!root.querySelector("input[name=ncecg]:checked");
+  const c=CHART[NC.pt],q=val("question"),abn=abnOf(c);
   const empty=k=>!val(k);
   return [
     {t:"Patient name, MRN, brief history, focused question, and callback are included.",miss:["name","mrn","summary","question","cb"].filter(empty).map(k=>[k,"Required on the consult page."])},
     {t:"Prior cardiac history and the patient’s cardiologist are identified.",miss:empty("cardio")?[["cardio",c.miss.cardio?`Not in the chart — ${c.miss.cardio}. Add it, or write “None known”.`:"Add prior cardiac history and the cardiologist, or “None known”."]]:[]},
-    {t:"Updated ECG and pertinent cardiac laboratory trends are available or pending.",miss:[...(ecg?[]:[["ecg","Mark whether an updated ECG is available."]]),...(empty("labs")?[["labs","Add pertinent cardiac labs, or “Pending”."]]:[])]},
+    {t:"Updated ECG and pertinent cardiac laboratory trends are available or pending.",miss:empty("labs")?[["labs","Add the ECG and pertinent cardiac labs, or “Pending”."]]:[]},
     {t:"Recent Stanford or outside cardiac testing is summarized.",miss:empty("testing")?[["testing",c.miss.testing?`Not in the chart — ${c.miss.testing}. Summarize it, upload the report below, or write “None”.`:"Summarize recent testing, or write “None”."]]:[]},
     {t:"Troponin, ECG, or telemetry abnormalities are linked to a clinical question.",miss:abn&&q&&!qAsks(q)?[["question",`This chart has an abnormal finding${c.risk?" ("+c.risk+")":""}. Ask what you want answered about it.`]]:[]},
     {t:"The correct general, admission, or subspecialty cardiology route is selected.",miss:[]}
@@ -739,10 +740,10 @@ function ckItems(){
 }
 function jumpTo(i){
   const it=ckItems()[i];const k=it&&it.miss.length?it.miss[0][0]:(i===5?"_route":["name","cardio","labs","testing","question"][i]);
-  const w=k==="_route"?root.querySelector(".ncq-to"):k==="question"?root.querySelector(".ncq"):root.querySelector(`.nct-f[data-nck="${k}"]`);if(!w)return;
+  const w=k==="_route"?root.querySelector(".ncq-to"):k==="question"?root.querySelector('[data-nck="question"]'):root.querySelector(`.nct-f[data-nck="${k}"]`);if(!w)return;
   w.scrollIntoView({block:"center",behavior:RM?"auto":"smooth"});
   w.classList.remove("nc-flash");void w.offsetWidth;w.classList.add("nc-flash");
-  const el=k==="_route"?null:w.querySelector("textarea,input:not([readonly]):not([type=radio])")||w.querySelector("input[type=radio]");
+  const el=k==="_route"?null:k==="question"?root.querySelector("#ncqIn"):w.querySelector("textarea,input:not([readonly]):not([type=radio])")||w.querySelector("input[type=radio]");
   if(el)setTimeout(()=>{el.focus({preventScroll:true});if(el.setSelectionRange&&el.type!=="radio"){const L=el.value.length;el.setSelectionRange(L,L)}},T(380));
 }
 function summary3(){
@@ -818,12 +819,12 @@ function pushRecord(){
   const f=buildFields(),radio=n=>root.querySelector(`input[name=${n}]:checked`)?.value||"";
   const srcOf=k=>{const v=val(k),o=String((k==="question"?NC.genQ:f[k])||"").trim();
     if(!v)return null;if(!o)return "Added by you";if(v!==o)return "Edited by you";
-    return k==="question"?"Your question":"From the chart"};
+    return k==="question"?"Your question":["summary","history"].includes(k)?"Drafted from the chart":"From the chart"};
   const line=(k,label)=>({label,text:val(k),src:srcOf(k)});
   const request={sentAt:time,to:NC.clin,route:R.name,groups:[
-    {title:"Clinical request",items:[line("summary","One-line summary"),line("question","Focused question"),line("history","Relevant history and recent change"),line("results","Pertinent results and pending tests"),line("testing","Recent cardiac testing")]},
-    {title:"Cardiovascular details",items:[{label:"PAMF patient",text:radio("ncpamf")==="yes"?"Yes":radio("ncpamf")==="no"?"No":"",src:null},{label:"Updated ECG",text:radio("ncecg")==="yes"?"Available":radio("ncecg")==="no"?"Not available":"",src:null},line("cardio","Prior cardiac history and cardiologist"),line("tele","Telemetry issue"),line("labs","Pertinent cardiac labs and trend")]},
-    {title:"Urgency and timing",items:[{label:"Urgency",text:urg,src:null},{label:"Needed by",text:val("need"),src:null}]}]};
+    {title:"Your request",items:[line("question","Consult question"),{label:"Urgency",text:urg,src:null},{label:"Needed by",text:val("need"),src:null}]},
+    {title:"Drafted for you",items:[line("summary","One-line summary"),line("history","Hospital course and what’s been tried")]},
+    {title:"From the chart",items:[line("cardio","Cardiac history and cardiologist"),line("meds","Medications"),line("labs","ECG, telemetry and cardiac labs"),line("testing","Recent cardiac testing")]}]};
   C.push({id,request,pt:NC.pt,svc:"Cardiology",who:NC.clin,whoRole:R.name,urg:urg==="Unstable"?"Emergent":urg,emergent:urg==="Unstable",reason,ordered:time,question:q,requester,callback,
     status:"paged",time,note:`Page sent to ${R.name}${isPager(R.pager)?" (pager "+R.pager+")":""} for ${NC.clin}. No acknowledgement yet.`,
     events:[[time,"Order created",`SEAL consult request · ${files.length} chart record${files.length===1?"":"s"} attached`,"ok"],[time,"Paged",`${R.name}${isPager(R.pager)?" · pager "+R.pager:""} · ${NC.clin}`,"blue"]]});
