@@ -2251,6 +2251,9 @@ details:not([open]) > summary > .p2-chev{transform:rotate(-90deg)}
 .f8-qt{margin:0;font-size:17px;line-height:26px;font-weight:500;color:var(--ink)}
 .f8-ph{margin-top:12px}
 .f8-tabs{margin:0 96px 20px 0}
+.tr.row.row-landed{animation:rowLanded 2.6s ease-out}
+@keyframes rowLanded{0%,55%{background:#EEF2FF}100%{background:transparent}}
+@media (prefers-reduced-motion: reduce){.tr.row.row-landed{animation:none;background:#EEF2FF}}
 /* tab labels sit on the same line as the left column's "Cardiology consult" label */
 .f8-tabs [role=tab]{height:auto;align-items:flex-start;padding:0 2px 10px;line-height:19px}
 .f8-reqlink{display:inline-block;margin-top:6px;padding:0;border:0;background:none;color:var(--ink);font:inherit;font-size:13px;font-weight:500;text-decoration:underline;text-underline-offset:3px;cursor:pointer}
@@ -2880,7 +2883,7 @@ mark.qhl{background:#E4E7EC;color:inherit;font-weight:inherit;border-radius:3px;
 
 .fl-cap-by{margin-top:2px;font-size:12.5px;line-height:18px;color:#5E6470;font-weight:400}
 </style>
-<link rel="stylesheet" href="new-consult.css">
+<link rel="stylesheet" href="new-consult.css?v=4">
 
 <div class="app" data-lay="C">
   <nav class="side" aria-label="Workspace">
@@ -3551,6 +3554,10 @@ function showConfToast(label,patient,id){
 }
 function armConfToast(){clearTimeout(CF_T);CF_T=setTimeout(hideConfToast,3000)}
 function hideConfToast(){const t=document.getElementById("cfToast");if(!t)return;clearTimeout(CF_T);t.classList.remove("on");t.classList.add("off")}
+/* a finished card's consult lands back in the table: flash its row blue (same as a new consult) so it's clear where it went */
+function flashRow(id){const r=document.querySelector(`.tr.row[data-id="${id}"]`);if(!r)return;
+  const b=r.getBoundingClientRect();if(b.top<0||b.bottom>innerHeight)r.scrollIntoView({block:"nearest",behavior:matchMedia("(prefers-reduced-motion: reduce)").matches?"auto":"smooth"});
+  r.classList.remove("row-landed");void r.offsetWidth;r.classList.add("row-landed");setTimeout(()=>r.classList.remove("row-landed"),2700)}
 function focusNextCard(leftId,keepId){
   const pick=(keepId&&document.querySelector(`.acard[data-id="${keepId}"]:not(.is-leaving) [data-act]`))||document.querySelector(".acard:not(.is-leaving) [data-act]")||document.querySelector('[role=tab][aria-selected="true"]');
   pick&&pick.focus({preventScroll:true});
@@ -3564,7 +3571,7 @@ function attnCards(){
       CA_COMP.set(id,{snap,t0:Date.now()});
       const live=$("tdlive");if(CONF_TOAST())showConfToast(snap.task.doneLabel,PT[c.pt].name,id);else if(live)live.textContent=`${snap.task.doneLabel}. ${PT[c.pt].name} no longer needs your attention.`;
       let tries=0;const fire=()=>{if(dlgOpen()&&tries++<12){setTimeout(fire,60);return} /* wait for the dialog to finish closing so the siblings' slide always runs */
-        const f=document.activeElement&&document.activeElement.closest&&document.activeElement.closest(".acard");CA_COMP.delete(id);CA_GONE.add(id);INSERT_PENDING="remove";render();if(f)focusNextCard(f.dataset.id===id?id:null,f.dataset.id)};
+        const f=document.activeElement&&document.activeElement.closest&&document.activeElement.closest(".acard");CA_COMP.delete(id);CA_GONE.add(id);INSERT_PENDING="remove";render();if(f)focusNextCard(f.dataset.id===id?id:null,f.dataset.id);setTimeout(()=>flashRow(id),420)};
       setTimeout(fire,caAnim());
     }
   });
@@ -5249,4 +5256,4 @@ try{const o=new URLSearchParams(location.search).get("open");if(o&&byId(o))openR
 window.SEAL_BRIDGE={C,PT,av,ME,TEAM,CALLBACK,NOW,fmt,FILE_BASE,render:()=>render(),tick:()=>"12:"+String(sendMin++).padStart(2,"0")};
 })();
 </script>
-<script src="new-consult.js"></script>
+<script src="new-consult.js?v=4"></script>
