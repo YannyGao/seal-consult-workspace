@@ -854,3 +854,21 @@ body.ncp-open .pcbtn,body.ncp-open .pc,body.ncp-open #pc{display:none!important}
 @keyframes ncpNewRow2{0%,55%{background:#F4F5F7}100%{background:transparent}}
 /* inside New consult, the workboard's automatic number wrapper inherits our type */
 .ncp .ds-mono,.nc-modal .ds-mono{font:inherit!important;letter-spacing:inherit!important;margin:0!important;padding:0!important;color:inherit}
+
+/* pick mode: the clinician's own question, with starters and guideline tips */
+.npq{margin-top:20px}
+.npq-req{font-style:normal;color:var(--ink3)}
+.npq textarea{width:100%;border:1px solid var(--hair);border-radius:10px;padding:10px 12px;font:inherit;font-size:14px;line-height:20px;background:#fff;resize:vertical;min-height:72px}
+.npq textarea:focus{outline:0;border-color:var(--ink);box-shadow:0 0 0 3px rgba(31,35,40,.07)}
+.npq-st{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin-top:10px}
+.npq-stl{font-size:12.5px;color:var(--ink3);margin-right:2px}
+.npq-tips{margin-top:14px;padding:12px 14px;border:1px solid var(--hair);border-radius:12px;background:var(--soft,#F7F8FA)}
+.npq-th{font-size:12.5px;font-weight:500;color:var(--ink2);margin-bottom:8px}
+.npq-tips ul{list-style:none;margin:0;padding:0;display:grid;gap:7px}
+.npq-t{display:flex;align-items:flex-start;gap:8px;font-size:13px;line-height:19px;color:var(--ink2)}
+.npq-ic{flex:none;display:inline-grid;place-items:center;width:18px;height:18px;margin-top:1px;border-radius:50%;font-size:12px;font-weight:600;color:var(--ink3)}
+.npq-ic svg{width:12px;height:12px}
+.npq-ok .npq-ic{background:var(--ink);color:#fff}
+.npq-warn .npq-ic{background:#FFF4E0;color:#8A5A00}
+.npq-w{display:block;margin-top:2px;font-weight:500;color:#8A5A00}
+.npq-ok .npq-ic svg path{stroke:#fff!important}
