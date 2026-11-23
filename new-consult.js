@@ -616,7 +616,7 @@ function paint3(){
     <div class="ncq-head">
       <div class="ncq-to">${av(NC.clin,32)}<div class="ncq-who"><small>Page to</small><b>${esc(NC.clin)}</b><span>${esc(R.name)} · ${esc(pagerText(R))}</span></div></div>
     </div>
-    <div hidden>${fld("question","Consult question",1,"",3)}</div>
+    <div hidden><textarea id="f-question" data-ncreq aria-hidden="true" tabindex="-1"></textarea></div>
     ${grp("ncgPt",1,"Patient and requester","",`
         ${fld("name","Patient name",1,"nc-s3 nc-lock")}${fld("mrn","MRN",1,"nc-s2 nc-lock")}${fld("room","Room",1,"nc-s1 nc-lock")}
         ${fld("team","Primary team",1,"nc-s3")}${fld("req","Requester name and role",1,"nc-s3")}
