@@ -403,7 +403,7 @@ const rowHTML=(s,c)=>{const g=gapOf(s,c);return g?`<div class="nci-row nci-gap">
 const gapCount=c=>IMPORT.filter(s=>gapOf(s,c)).length;
 const doneText=c=>{const g=gapCount(c);return `${IMPORT.length} records checked`+(g?" · some outside records aren’t in Epic":" · ready to use in the request")};
 const flagHTML=c=>c.flag?`<div class="nci-flag nc-${c.flag.t}"><span class="nc-alert-ic">${I.warn}</span><span>${esc(c.flag.x)}</span></div>`:"";
-function existingOf(k){return C.filter(x=>x.pt===k&&x.svc==="Cardiology"&&!x.archived&&x.status!=="done")}
+function existingOf(k){return C.filter(x=>x.pt===k&&(x.dept||x.svc)==="Cardiology"&&!x.archived&&x.status!=="done")}
 function dupHTML(){const ex=existingOf(NC.pt);if(!ex.length)return "";const x=ex[ex.length-1],st={paged:"Paged",accepted:"Accepted",info:"Information requested",infoupd:"Information updated",recs:"Recommendations recorded",failed:"Page failed",redirected:"Redirection requested",redirsent:"Page submitted"}[x.status]||x.status;
   const more=ex.length>1?` (+${ex.length-1} more)`:"";
   return `<div class="nc-alert nc-info nc-dup" style="margin-top:16px"><span class="nc-alert-ic">${I.info}</span><div class="nc-dup-t">${esc(PT[NC.pt].name)} also has an active Cardiology consult${more} — ${esc(x.who||"consultant not confirmed")} · ${esc(st)} ${fmt(x.time)}, “${esc(x.reason)}”. If it’s the same question, you can message that consultant instead. <button type="button" class="nc-link nc-dup-open" data-ncopen="${esc(x.id)}">View that consult</button></div><button type="button" class="nc-x nc-dup-x" data-ncdupok aria-label="Dismiss">${I.x}</button></div>`}
@@ -885,7 +885,7 @@ function pushRecord(){
     {title:"Consult question and urgency",items:[line("question","Consult question"),{label:"Urgency",text:urg,src:null},{label:"Needed by",text:val("need"),src:null}]},
     {title:"Clinical summary",items:[line("summary","One-line summary"),line("history","Hospital course and what’s been tried")]},
     {title:"Cardiovascular details",items:[line("cardio","Cardiac history and cardiologist"),line("meds","Medications"),line("labs","ECG, telemetry and cardiac labs"),line("testing","Recent cardiac testing")]}]};
-  C.push({id,request,pt:NC.pt,svc:"Cardiology",who:NC.clin,whoRole:R.name,urg:urg==="Unstable"?"Emergent":urg,emergent:urg==="Unstable",reason,ordered:time,question:q,requester,callback,
+  C.push({id,request,pt:NC.pt,svc:R.name,dept:"Cardiology",who:NC.clin,whoRole:R.name,urg:urg==="Unstable"?"Emergent":urg,emergent:urg==="Unstable",reason,ordered:time,question:q,requester,callback,
     status:"paged",time,note:`Page sent to ${R.name}${isPager(R.pager)?" (pager "+R.pager+")":""} for ${NC.clin}. No acknowledgement yet.`,
     events:[[time,"Order created",`SEAL consult request · ${files.length} chart record${files.length===1?"":"s"} attached`,"ok"],[time,"Paged",`${R.name}${isPager(R.pager)?" · pager "+R.pager:""} · ${NC.clin}`,"blue"]]});
   return {id,time,name:PT[NC.pt].name,route:R.name,clin:NC.clin};
