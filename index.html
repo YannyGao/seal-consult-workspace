@@ -2773,6 +2773,8 @@ button.fl-item:focus-visible{outline:2px solid var(--focus);outline-offset:2px}
 :root[data-hyb] .tr.row .st:not(:has(.nudge)){display:flex;flex-direction:column;align-items:flex-start;gap:4px}
 :root[data-hyb] .tr.row .st:not(:has(.nudge)) .pline{order:-1;margin:0}
 :root[data-hyb] .tr.row .st:not(:has(.nudge)) .tline{margin:0}
+/* the time under the status tag sits on the same line as the room · MRN under the patient name (both 18px lines) */
+:root[data-hyb] .tr.row .st:not(:has(.nudge)) .tline{line-height:18px;margin-top:2px}
 
 /* ---- Hybrid pager arrows: circular containers (Prototype controls → Hybrid arrows) ---- */
 :root[data-hyb] .apg-nav{display:flex;align-items:center;gap:8px}
