@@ -191,7 +191,7 @@ const OTHER_SPECS=["Critical Care","Dermatology","Endocrinology","Gastroenterolo
 /* natural-language router: first match wins */
 const RULES=[
   [/admit(ted|ting)? to cardiology|admission to cardiology|transfer to cardiology/i,"adm","acs","Admission to cardiology"],
-  [/\bstemi\b|st[- ]elevation (mi|myocardial)|cath(eter)? lab|\bcath\b|occlusion/i,"ic","acs","Possible STEMI / cath evaluation"],
+  [/\bstemi\b|st[- ]elevation (mi|myocardial)|cath(eter)? lab activation|activate (the )?cath lab|occlusion mi|\bomi\b/i,"ic","acs","Possible STEMI / cath evaluation"],
   [/interrogat|device check|pacemaker check|icd check|shock(ed|s)? (by|from) (his|her|their|the|an?) ?(icd|defibrillator|device)|(icd|defibrillator|device) (shock|fired|discharge)/i,"dev","arr","Device interrogation"],
   [/cardiogenic|\bin shock\b|shock state|pressor|norepi|levophed|impella|balloon pump|iabp|\bicu-level|hypotensi/i,"cicu","hf","Possible cardiogenic shock"],
   [/pacemaker|\bicd\b|defibrillator|\bcrt\b/i,"dev","arr","Cardiac device question"],
@@ -199,7 +199,7 @@ const RULES=[
   [/congenital|fallot|fontan|\bachd\b|tetralogy|\basd\b|\bvsd\b/i,"achd","arr","Adult congenital heart disease"],
   [/stat echo|urgent echo|echo (today|now|asap)/i,"echo","peri","Stat echocardiogram"],
   [/a-?fib|atrial fib|flutter|\brvr\b|brady|heart block|tachyarr|\bsvt\b|palpitation|arrhythm/i,"gen","arr","Arrhythmia management"],
-  [/chest pain|troponin|\btrop\b|nstemi|\bacs\b|angina|\bcad\b|t-wave|st depression/i,"gen","acs","Chest pain / possible ACS"],
+  [/chest pain|troponin|\btrop\b|nstemi|\bacs\b|angina|\bcad\b|t-wave|st depression|\bcath\b|angiogra/i,"gen","acs","Chest pain / possible ACS"],
   [/heart failure|\bchf\b|hfref|hfpef|\bbnp\b|volume overload|diures/i,"gen","hf","Heart failure management"],
   [/pericard|effusion|tamponade/i,"gen","peri","Pericarditis / effusion"],
   [/myocarditis/i,"gen","myo","Possible myocarditis"],
@@ -473,7 +473,7 @@ async function ask(q){
   const r=routeQuestion(NC.question),p=PT[NC.pt],c=CHART[NC.pt];
   if(!r){await aiSay([{text:"I couldn’t match that to a service yet. This demo covers **Cardiovascular Medicine** — describe the cardiac concern (symptom, ECG, troponin, rhythm, device…), or switch to **Pick a specialty**."}],[["Reading your question","doc"],["Matching to a service","route"]]);NC.question="";NC.busy=false;return}
   NC.reason=r.reason;if(r.topic)NC.topic=r.topic;
-  if(dead())return;const t1=await aiSay([{text:`Got it — I’d file this under **${r.reason}** for ${p.name}. Two quick checks before I route it.`},{text:"Is the patient hemodynamically stable right now?"}],[["Reading your question","doc"],["Matching to a service","route"],["Checking the consult guidelines","scope"]]);
+  if(dead())return;const t1=await aiSay([{text:`Got it — I’d file this under **${r.reason}** for ${p.name}. Two quick checks before I suggest a service.`},{text:"Is the patient hemodynamically stable right now?"}],[["Reading your question","doc"],["Matching to a service","route"],["Checking the consult guidelines","scope"]]);
   if(dead())return;const st=await choose(t1,[["stable","Stable"],["unstable","Unstable / worsening"]]);
   if(st==="unstable"){
     NC.unstable=true;NC.urg="Urgent";
@@ -499,8 +499,8 @@ async function ask(q){
   if(c.pamf&&EMERG.includes(route))why.push("PAMF patient — emergency stays with this pager; also let PAMF Cardiology know");
   if(NC.unstable)why.push("Marked unstable — activate the local emergency response first");
   R=ROUTES[route];
-  if(dead())return;await aiSay([{text:route==="adm"?"This isn’t a consult — admissions and transfers go to the admitting cardiology team. Details are below the chat.":`Routed to **${R.name}**. The suggestion and who’s on call are below the chat.`}],[["Checking the consult guidelines","scope"],["Choosing the service","route"]]);
-  if(dead())return;NC.busy=false;NC.askResult={route,why};if(NC.route!==route){NC.route=route;NC.clin=null}NC.askRouted=true;
+  if(dead())return;await aiSay([{text:route==="adm"?"This isn’t a consult — admissions and transfers go to the admitting cardiology team. Details are below the chat.":`I’d suggest **${R.name}**. Confirm it below the chat, or choose a different service.`}],[["Checking the consult guidelines","scope"],["Choosing the service","route"]]);
+  if(dead())return;NC.busy=false;NC.askResult={route,why};if(NC.route!==route){NC.route=route;NC.clin=null}NC.askRouted=false;
   paintAskResult();paintOncall();act2();
   setTimeout(()=>{const r=root&&root.querySelector("#askRes");r&&r.scrollIntoView({behavior:RM?"auto":"smooth",block:"start"})},T(120));
 }
@@ -508,11 +508,16 @@ function paintAskResult(){
   const box=root&&root.querySelector("#askRes");if(!box)return;
   if(NC.mode!=="ask"||!NC.askResult){box.innerHTML="";return}
   const {route,why}=NC.askResult,R=ROUTES[route];
-  box.innerHTML=`<div class="nc-route"><div class="nc-route-top"><span class="nc-tile nc-sm">${I.sparkSm}</span><span class="nc-route-eyebrow">Suggested route</span><button type="button" class="nc-link" data-ncalt>Choose a different service</button></div>
+  box.innerHTML=`<div class="nc-route"><div class="nc-route-top"><span class="nc-tile nc-sm">${I.sparkSm}</span><span class="nc-route-eyebrow">${NC.askRouted?"Confirmed route":"Suggested route"}</span><button type="button" class="nc-link" data-ncalt>Choose a different service</button></div>
     <div class="nc-route-path"><span>Cardiovascular Medicine</span>${I.chevR}<b>${esc(R.name)}</b></div>
     <div class="nc-route-pg">${esc(isPager(R.pager)?"Pager "+R.pager+" · "+R.desc:R.desc)}</div>
-    <ul class="nc-route-why">${why.map(w=>`<li><span class="nc-route-ck">${I.ck}</span>${esc(w)}</li>`).join("")}</ul></div>`;
+    <ul class="nc-route-why">${why.map(w=>`<li><span class="nc-route-ck">${I.ck}</span>${esc(w)}</li>`).join("")}</ul>
+    ${NC.askRouted?"":`<div class="nc-alert-act"><button type="button" class="ncp-btn nc-sm" data-ncconfirm>Use ${esc(R.name)}</button></div>`}</div>`;
   box.querySelector("[data-ncalt]").onclick=()=>{NC.mode="pick";paint2()};
+  const ok=box.querySelector("[data-ncconfirm]");
+  if(ok)ok.onclick=()=>{NC.route=route;NC.askRouted=true;paintAskResult();paintOncall();act2();
+    const h=box.querySelector(".nc-route-eyebrow");h&&h.setAttribute("tabindex","-1");h&&h.focus({preventScroll:true});
+    setTimeout(()=>{const oc=root&&root.querySelector("#oncall");oc&&oc.scrollIntoView({behavior:RM?"auto":"smooth",block:"start"})},T(60))};
 }
 function bindRouteCard(log){
   log.querySelectorAll(".ncc-route").forEach(card=>{
@@ -769,7 +774,8 @@ function pushRecord(){
   const R=ROUTES[NC.route],urg=root.querySelector("input[name=ncurg]:checked")?.value||"Routine",q=val("question");
   const time=B.tick(),id="n"+Date.now().toString(36);
   const clause=t=>{const x=t.split(/[.?!]/)[0].trim();return x.length>64?x.slice(0,61).trim()+"…":x};
-  const reason=q&&q!==NC.genQ?clause(q):(NC.reason||(NC.topic?TOPIC_LABEL[NC.topic]:clause(q)));
+  const aiKept=NC.reason&&NC.askResult&&NC.askResult.route===NC.route;
+  const reason=q&&q!==NC.genQ?clause(q):(aiKept?NC.reason:(NC.topic?TOPIC_LABEL[NC.topic]:clause(q)));
   const requester=(val("req").split(" · ")[0]||ME).trim(),callback=val("cb")||CALLBACK;
   const files=(NC.recs||[]).filter(r=>r.on&&!r.gap).map((r,i)=>({key:`${id}-f${i}`,title:r.title,kind:"pdf",size:"PDF · "+(80+i*23)+" KB"}));
   FILE_BASE[id]=files;
