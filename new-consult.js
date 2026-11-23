@@ -145,6 +145,12 @@ function recordsFor(k){
   return r.map(x=>({...x,on:!x.gap&&want(x)}));
 }
 
+/* which chart records each drafted field comes from (shown as chips that open the record) */
+const SRC_OF={summary:["hp"],history:["hp"],cardio:["hp"],meds:["meds"],labs:["ecg","tele","labs"],testing:["test"]};
+const AI_FIELDS=["summary","history"];
+const chipName=r=>r.id==="ecg"?`ECG${/\d/.test(r.date||"")?" · "+String(r.date).replace(/^Today\s*/,""):""}`:r.id==="labs"?"Cardiac labs":r.id==="tele"?"Telemetry":r.title;
+document.addEventListener("click",e=>{const b=e.target.closest&&e.target.closest("[data-ncsrcdoc]");if(!b||!root)return;e.preventDefault();
+  const id=b.dataset.ncsrcdoc,r=(NC.recs||[]).find(x=>x.id===id)||recordsFor(NC.pt).find(x=>x.id===id);if(r)openDoc(r)});
 /* ---------- routes (guideline pagers) and synthetic on-call roster ---------- */
 const ROUTES={
   gen:{name:"General Cardiology",pager:"24300",desc:"Consult or on-call cardiology fellow, staffed 24/7"},
@@ -608,7 +614,10 @@ function buildFields(){
 function paint3(){
   const pane=root.querySelector("#ncpPane"),f=buildFields(),R=ROUTES[NC.route];
   const src=t=>`<span class="nct-src">${I.sparkSm}${t}</span>`;
-  const fld=(k,label,req,cls,ta,s)=>`<div class="nct-f ${cls||""}" data-nck="${k}"><label for="f-${k}">${label}${req?" <i>*</i>":""}</label>${ta?`<textarea id="f-${k}" rows="${ta}"${req?" data-ncreq":""}></textarea>`:`<input id="f-${k}" type="text"${req?" data-ncreq":""}>`}${s?src(s):""}</div>`;
+  const recs0=recordsFor(NC.pt),chips=k=>{const ids=SRC_OF[k];if(!ids)return "";const rs=ids.map(id=>recs0.find(r=>r.id===id&&!r.gap)).filter(Boolean);if(!rs.length)return "";
+    return `${AI_FIELDS.includes(k)?`<span class="nc-srcl">${I.sparkSm}Drafted from</span>`:`<span class="nc-srcl nc-srcl-c">From</span>`}${rs.map(r=>`<button type="button" class="nc-chip" data-ncsrcdoc="${r.id}" title="Open ${esc(r.title)}">${I[r.icon]||""}<span>${esc(chipName(r))}</span></button>`).join("")}`};
+  const fld=(k,label,req,cls,ta,s)=>{const ch=s?chips(k):"",lab=`<label for="f-${k}">${label}${req?" <i>*</i>":""}</label>`;
+    return `<div class="nct-f ${cls||""}${ch?" nc-has-src":""}" data-nck="${k}">${ch?`<div class="nct-lrow">${lab}<span class="nct-src nc-srcs nc-srcs-label">${ch}</span></div>`:lab}<div class="nct-in">${ta?`<textarea id="f-${k}" rows="${ta}"${req?" data-ncreq":""}></textarea>`:`<input id="f-${k}" type="text"${req?" data-ncreq":""}>`}${ch?`<span class="nct-src nc-srcs nc-srcs-in">${ch}</span>`:""}</div>${s&&!ch?src(s):""}</div>`};
   const p=PT[NC.pt],cc=CHART[NC.pt],q0=(NC.mode==="pick"?NC.pickQ:NC.question)||"";
   const risk=cc.risk,u0=NC.unstable?"Unstable":"";
   const grp=(id,n,t,sub,body,cls)=>`<section class="nct-sec ncg ${cls||""}" aria-labelledby="${id}"><div class="nct-sh"><span class="nc-num">${n}</span><span id="${id}">${t}</span>${sub?`<span class="nct-sh-sub">${sub}</span>`:""}</div><div class="nct-body">${body}</div></section>`;
@@ -679,7 +688,7 @@ function paint3(){
     NC.filling=!restore;
     for(const k of ["name","mrn","room","team","req","cb","at","need","summary","question","history","cardio","meds","labs","testing"]){
       const el=pane.querySelector("#f-"+k);if(!el||!root||NC.step!==3){NC.filling=false;return}const v=restore?restore.vals[k]:(f[k]||""),w=el.closest(".nct-f")||el.parentElement;
-      if(need[k]){el.placeholder=need[k][0];const sEl=w.querySelector(".nct-src");if(sEl)sEl.remove()}
+      if(need[k]){el.placeholder=need[k][0];(w.closest(".nct-f")||w).querySelectorAll(".nct-src").forEach(x=>x.remove());(w.closest(".nct-f")||w).classList.remove("nc-has-src")}
       if(restore){el.value=v??"";continue}
       if(["name","mrn","room","team","req","cb","at","need"].includes(k))continue;
       w.classList.add("nc-fill");
@@ -846,7 +855,8 @@ function pushRecord(){
   const f=buildFields(),radio=n=>root.querySelector(`input[name=${n}]:checked`)?.value||"";
   const srcOf=k=>{const v=val(k),o=String((k==="question"?NC.genQ:f[k])||"").trim();
     if(!v)return null;if(!o)return "Added by you";if(v!==o)return "Edited by you";
-    return k==="question"?"Your question":["summary","history"].includes(k)?"Drafted from the chart":"From the chart"};
+    if(k==="question")return "Your question";const rs=(SRC_OF[k]||[]).map(id=>(NC.recs||[]).find(r=>r.id===id&&!r.gap)).filter(Boolean).map(chipName);
+    return (AI_FIELDS.includes(k)?"Drafted from ":"From ")+(rs.length?rs.join(", "):"the chart")};
   const line=(k,label)=>({label,text:val(k),src:srcOf(k)});
   const request={sentAt:time,to:NC.clin,route:R.name,groups:[
     {title:"Consult question and urgency",items:[line("question","Consult question"),{label:"Urgency",text:urg,src:null},{label:"Needed by",text:val("need"),src:null}]},

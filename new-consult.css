@@ -795,3 +795,24 @@ body.ncp-open .pcbtn,body.ncp-open .pc,body.ncp-open #pc{display:none!important}
 .nc-modal-bd{backdrop-filter:none!important;-webkit-backdrop-filter:none!important}
 /* your answers in the chat stand out from the silver panel */
 .ncc-me{background:#E6E8ED}
+
+/* ---------- sources as chips that open the chart record (Prototype controls → New consult → Source chips) ---------- */
+.nct-in{position:relative;display:flex;flex-direction:column;gap:6px}
+.nct-lrow{display:flex;align-items:center;justify-content:space-between;gap:10px;min-height:24px}
+.nc-srcs{display:flex;flex-wrap:wrap;align-items:center;gap:6px}
+.nc-srcl{display:inline-flex;align-items:center;gap:4px;font:400 12px/16px var(--sans);color:var(--ink3)}
+.nc-srcl svg{width:11px;height:11px}
+.nc-chip{display:inline-flex;align-items:center;gap:5px;height:24px;padding:0 9px 0 7px;border:0;border-radius:999px;background:#F1F2F5;color:var(--ink2);font:500 12px/1 var(--sans);cursor:pointer;white-space:nowrap;transition:background .12s,color .12s}
+.nc-chip svg{width:13px;height:13px;flex:none}
+.nc-chip:hover{background:#E6E8ED;color:var(--ink)}
+.nc-chip:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
+/* 1 · below the field (default) */
+.nc-srcs-label{display:none}
+/* 2 · on the label row */
+:root[data-ncsrc="label"] .nc-srcs-label{display:flex}
+:root[data-ncsrc="label"] .nc-srcs-in{display:none}
+/* 3 · inside the field, bottom-right */
+:root[data-ncsrc="corner"] .nc-has-src textarea{padding-bottom:38px}
+:root[data-ncsrc="corner"] .nc-srcs-in{position:absolute;right:8px;bottom:8px;justify-content:flex-end}
+:root[data-ncsrc="corner"] .nc-srcs-in .nc-srcl-c{display:none}
+:root[data-ncsrc="corner"] .nc-srcs-in .nc-chip{background:#EEF0F3}
