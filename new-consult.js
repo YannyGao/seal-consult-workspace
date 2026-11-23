@@ -723,7 +723,7 @@ function bindAddFile(){
 function renderRecs(){
   const ul=root&&root.querySelector("#ncRecs");if(!ul)return;
   ul.innerHTML=NC.recs.map((r,i)=>r.gap?`<li class="nct-rec nct-rec-gap"><span class="nct-rec-ic nct-rec-ic-gap">!</span><div class="nct-rec-t"><b>${esc(r.title)}</b><span>Not in Epic — ${esc(r.why)}. Upload it if you have it.</span></div><button type="button" class="ncp-btn nc-ghost nc-sm" data-ncup="${i}">${I.upload}Upload file</button></li>`:
-    `<li class="nct-rec${r.on?"":" nct-rec-off"}"><label class="nct-rec-cb"><input type="checkbox" data-ncrec="${i}"${r.on?" checked":""} aria-label="Include ${esc(r.title)}"></label><span class="nct-rec-ic">${I[r.icon]}</span><div class="nct-rec-t"><b>${esc(r.title)}</b><span>${esc(r.src)}${r.date?" · "+esc(r.date):""}</span>${usedIn(r.id)?`<span class="nct-rec-use">Source for ${esc(usedIn(r.id))}</span>`:""}</div><button type="button" class="nc-link" data-ncprev="${i}">Preview</button></li>`).join("");
+    `<li class="nct-rec${r.on?"":" nct-rec-off"}"><label class="nct-rec-cb"><input type="checkbox" data-ncrec="${i}"${r.on?" checked":""} aria-label="Include ${esc(r.title)}"></label><span class="nct-rec-ic">${I[r.icon]}</span><div class="nct-rec-t"><b>${esc(r.title)}</b>${r.up?`<span>Added by you${r.date?" · "+esc(r.date):""}</span>`:r.date?`<span>${esc(r.date)}</span>`:""}</div><button type="button" class="nc-link" data-ncprev="${i}">Preview</button></li>`).join("");
   syncChips();
   ul.onchange=e=>{const cb=e.target.closest("[data-ncrec]");if(!cb)return;const r=NC.recs[+cb.dataset.ncrec];r.on=cb.checked;cb.closest(".nct-rec").classList.toggle("nct-rec-off",!r.on);syncChips();summary3()};
   ul.onclick=async e=>{
