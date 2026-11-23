@@ -129,6 +129,15 @@ const NEED_BY={Routine:"Today",Urgent:"Within 1 hour",Unstable:"Now — emergent
 const EMERG=["ic","cicu","echo","dev"];
 const unitOf=room=>UNIT[room]||"7 East";
 /* raw chart records the consultant receives as files (synthetic) */
+/* one timestamp format for every chart record: "Today, 6:40 AM" · "Yesterday, 8:15 PM" · "Mar 14, 2025, 10:20 AM" (synthetic) */
+const MON=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+function recStamp(x,c){
+  if(x.gap)return x.date;
+  if(x.id==="ecg"){const m=/Today (\d\d:\d\d)/.exec(c.ecg||"");return `Today, ${m?fmt(m[1]):"6:40 AM"}`}
+  const fixed={labs:"Today, 5:42 AM",tele:"Today, 7:00 AM",hp:"Yesterday, 8:15 PM",meds:"Today, 6:05 AM"};if(fixed[x.id])return fixed[x.id];
+  if(x.id==="test"){const d=String(x.date||"");let m=/^(\d\d)\/(\d{4})$/.exec(d);if(m)return `${MON[+m[1]-1]} 14, ${m[2]}, 10:20 AM`;m=/(\d{4})/.exec(d);if(m)return `Jun 3, ${m[1]}, 2:15 PM`}
+  return x.date;
+}
 const tm=(t,d)=>{const m=/Today (\d\d:\d\d)/.exec(t||"");return m?`Today ${fmt(m[1])}`:d};
 const ecgTrace=()=>{let d="M0 40";for(let i=0;i<6;i++){const x=i*70;d+=` L${x+10} 40 L${x+16} 36 L${x+22} 40 L${x+30} 40 L${x+33} 46 L${x+37} 8 L${x+41} 52 L${x+45} 40 L${x+54} 40 L${x+60} 33 L${x+66} 40`}return `<svg class="nc-doc-trace" viewBox="0 0 420 60" preserveAspectRatio="none" aria-hidden="true"><path d="${d}"/></svg>`};
 function recordsFor(k){
@@ -142,9 +151,21 @@ function recordsFor(k){
   r.push({id:"hp",icon:"fDoc",title:"Admission H&P",src:"Epic · Hospital Medicine",date:"This admission",body:`<dl class="nc-doc-dl"><dt>Patient</dt><dd>${esc(p.name)} · ${c.age} ${c.sex} · ${esc(p.room)}</dd><dt>Admitted for</dt><dd>${esc(c.adm)}</dd><dt>History</dt><dd>${esc(c.hx)}</dd><dt>Cardiologist</dt><dd>${esc(c.miss.cardio?"None on file":c.cardio)}</dd></dl>`});
   r.push({id:"meds",icon:"fPill",title:"Medication list",src:"Epic · Pharmacy",date:"Today",body:`<ul class="nc-doc-ul">${c.meds.split(/,\s*/).map(m=>`<li>${esc(m)}</li>`).join("")}</ul>`});
   const want=x=>["ecg","labs","test"].includes(x.id)||(x.id==="tele"&&!/no events|no arrhythmia|^normal|^sinus rhythm$/i.test(c.tele));
-  return r.map(x=>({...x,on:!x.gap&&want(x)}));
+  return r.map(x=>({...x,date:recStamp(x,c),on:!x.gap&&want(x)}));
 }
 
+/* chips and the Chart records checkboxes always agree: cited records start attached; an unattached one shows as such */
+const FIELD_NAME={summary:"One-line summary",history:"Hospital course",cardio:"Cardiac history",meds:"Medications",labs:"ECG, telemetry and labs",testing:"Recent testing"};
+const citedIds=()=>new Set(Object.keys(SRC_OF).filter(k=>root&&root.querySelector(`.nct-f[data-nck="${k}"].nc-has-src`)).flatMap(k=>SRC_OF[k]));
+const usedIn=id=>Object.keys(SRC_OF).filter(k=>SRC_OF[k].includes(id)&&root&&root.querySelector(`.nct-f[data-nck="${k}"].nc-has-src`)).map(k=>FIELD_NAME[k]).join(", ");
+function syncChips(){if(!root||!NC.recs)return;root.querySelectorAll(".nc-chip[data-ncsrcdoc]").forEach(b=>{const r=NC.recs.find(x=>x.id===b.dataset.ncsrcdoc),off=!r||!r.on;b.classList.toggle("nc-chip-off",off);
+  const nm=b.querySelector("span").textContent;b.title=off?`${nm} isn’t attached to this consult. Open it, or tick it in Chart records.`:`Open ${nm} (attached)`})}
+/* which chart records each drafted field comes from (shown as chips that open the record) */
+const SRC_OF={summary:["hp"],history:["hp"],cardio:["hp"],meds:["meds"],labs:["ecg","tele","labs"],testing:["test"]};
+const AI_FIELDS=["summary","history"];
+const chipName=r=>r.id==="ecg"?`ECG${/\d/.test(r.date||"")?" · "+String(r.date).replace(/^Today,?\s*/,""):""}`:r.id==="labs"?"Cardiac labs":r.id==="tele"?"Telemetry":r.title;
+document.addEventListener("click",e=>{const b=e.target.closest&&e.target.closest("[data-ncsrcdoc]");if(!b||!root)return;e.preventDefault();
+  const id=b.dataset.ncsrcdoc,r=(NC.recs||[]).find(x=>x.id===id)||recordsFor(NC.pt).find(x=>x.id===id);if(r)openDoc(r)});
 /* ---------- routes (guideline pagers) and synthetic on-call roster ---------- */
 const ROUTES={
   gen:{name:"General Cardiology",pager:"24300",desc:"Consult or on-call cardiology fellow, staffed 24/7"},
@@ -330,7 +351,14 @@ function reveal(el,o={}){
   if(Math.abs(d)>2)root.scrollBy({top:d,behavior:RM?"auto":"smooth"});
   if(o.focus)o.focus.focus({preventScroll:true});
 }
-function actions(hint,btns){root.querySelector("#ncpAct").innerHTML=`<span class="ncp-hint">${hint||""}</span>${btns}`}
+function actions(hint,btns){root.querySelector("#ncpAct").innerHTML=`<span class="ncp-hint">${hint||""}</span>${btns}`;syncSteps()}
+/* a step chip is clickable whenever Continue would get you there: the next step once Continue is enabled,
+   and step 3 from step 1 when the specialty and consultant are already chosen */
+function syncSteps(){if(!root)return;
+  const nx=root.querySelector("#n1,#n2"),canNext=!!nx&&!nx.disabled;
+  const ready2=!!NC.route&&NC.route!=="adm"&&!!NC.clin&&ocReady();
+  root.querySelectorAll("[data-ncstep]").forEach(b=>{const n=+b.dataset.ncstep;if(n===NC.step||n<=NC.maxStep)return;
+    const open=canNext&&(n===NC.step+1||(NC.step===1&&n===3&&ready2));b.disabled=!open;b.classList.toggle("nc-next",open)})}
 function lockAhead(){NC.maxStep=NC.step;root.querySelectorAll("[data-ncstep]").forEach(b=>{const n=+b.dataset.ncstep;if(n>NC.step){b.disabled=true;b.classList.remove("done");b.querySelector(".nc-num").textContent=n}})}
 const ptChip=()=>{const p=PT[NC.pt];return `<div class="nc-ptchip"><span class="nc-ini">${initials(p.name)}</span><b>${esc(p.name)}</b><span class="nc-ptid">${esc(p.room)} · ${esc(p.mrn)}</span><button type="button" data-ncgo="1">Change</button></div>`};
 function bindChip(){const b=root.querySelector("[data-ncgo]");if(b)b.onclick=()=>go(1)}
@@ -608,7 +636,10 @@ function buildFields(){
 function paint3(){
   const pane=root.querySelector("#ncpPane"),f=buildFields(),R=ROUTES[NC.route];
   const src=t=>`<span class="nct-src">${I.sparkSm}${t}</span>`;
-  const fld=(k,label,req,cls,ta,s)=>`<div class="nct-f ${cls||""}" data-nck="${k}"><label for="f-${k}">${label}${req?" <i>*</i>":""}</label>${ta?`<textarea id="f-${k}" rows="${ta}"${req?" data-ncreq":""}></textarea>`:`<input id="f-${k}" type="text"${req?" data-ncreq":""}>`}${s?src(s):""}</div>`;
+  const recs0=recordsFor(NC.pt),chips=k=>{const ids=SRC_OF[k];if(!ids)return "";const rs=ids.map(id=>recs0.find(r=>r.id===id&&!r.gap)).filter(Boolean);if(!rs.length)return "";
+    return `${AI_FIELDS.includes(k)?`<span class="nc-srcl">${I.sparkSm}Drafted from</span>`:`<span class="nc-srcl nc-srcl-c">From</span>`}${rs.map(r=>`<button type="button" class="nc-chip" data-ncsrcdoc="${r.id}" title="Open ${esc(r.title)}">${I[r.icon]||""}<span>${esc(chipName(r))}</span></button>`).join("")}`};
+  const fld=(k,label,req,cls,ta,s)=>{const ch=s?chips(k):"",lab=`<label for="f-${k}">${label}${req?" <i>*</i>":""}</label>`;
+    return `<div class="nct-f ${cls||""}${ch?" nc-has-src":""}" data-nck="${k}">${ch?`<div class="nct-lrow">${lab}<span class="nct-src nc-srcs nc-srcs-label">${ch}</span></div>`:lab}<div class="nct-in">${ta?`<textarea id="f-${k}" rows="${ta}"${req?" data-ncreq":""}></textarea>`:`<input id="f-${k}" type="text"${req?" data-ncreq":""}>`}${ch?`<span class="nct-src nc-srcs nc-srcs-in">${ch}</span>`:""}</div>${s&&!ch?src(s):""}</div>`};
   const p=PT[NC.pt],cc=CHART[NC.pt],q0=(NC.mode==="pick"?NC.pickQ:NC.question)||"";
   const risk=cc.risk,u0=NC.unstable?"Unstable":"";
   const grp=(id,n,t,sub,body,cls)=>`<section class="nct-sec ncg ${cls||""}" aria-labelledby="${id}"><div class="nct-sh"><span class="nc-num">${n}</span><span id="${id}">${t}</span>${sub?`<span class="nct-sh-sub">${sub}</span>`:""}</div><div class="nct-body">${body}</div></section>`;
@@ -673,13 +704,13 @@ function paint3(){
     if(restore)pane.querySelectorAll(".nct-sec").forEach(x=>x.style.animation="none");
     const rad=restore?restore.radios:{};
     Object.entries(rad).forEach(([n,v])=>{const r=pane.querySelector(`input[name=${n}][value="${v}"]`);if(r)r.checked=true});
-    if(!restore||!NC.recs||NC.recsPt!==NC.pt){NC.recs=recordsFor(NC.pt);NC.recsPt=NC.pt}renderRecs();bindAddFile();
+    if(!restore||!NC.recs||NC.recsPt!==NC.pt){NC.recs=recordsFor(NC.pt);NC.recsPt=NC.pt;const cited=citedIds();NC.recs.forEach(r=>{if(!r.gap&&cited.has(r.id))r.on=true})}renderRecs();bindAddFile();
     urgNote();summary3();NC.genQ=restore?restore.genQ:f.question;pane.querySelectorAll(".nc-lock input").forEach(i=>{i.readOnly=true;i.title="From the patient’s chart"});
     const need={};if(c.miss.cardio)need.cardio=["Add prior cardiac history and the cardiologist, or “None known”.",`Not in the chart — ${c.miss.cardio}.`];if(c.miss.testing)need.testing=["Type a summary, or upload the report in Chart records below.",`Not in the chart — ${c.miss.testing}.`];
     NC.filling=!restore;
     for(const k of ["name","mrn","room","team","req","cb","at","need","summary","question","history","cardio","meds","labs","testing"]){
       const el=pane.querySelector("#f-"+k);if(!el||!root||NC.step!==3){NC.filling=false;return}const v=restore?restore.vals[k]:(f[k]||""),w=el.closest(".nct-f")||el.parentElement;
-      if(need[k]){el.placeholder=need[k][0];const sEl=w.querySelector(".nct-src");if(sEl)sEl.remove()}
+      if(need[k]){el.placeholder=need[k][0];(w.closest(".nct-f")||w).querySelectorAll(".nct-src").forEach(x=>x.remove());(w.closest(".nct-f")||w).classList.remove("nc-has-src")}
       if(restore){el.value=v??"";continue}
       if(["name","mrn","room","team","req","cb","at","need"].includes(k))continue;
       w.classList.add("nc-fill");
@@ -701,22 +732,23 @@ function bindAddFile(){
   const b=root&&root.querySelector("#ncAddF"),inp=root&&root.querySelector("#ncAddIn");if(!b||!inp||b.dataset.on)return;b.dataset.on="1";
   b.onclick=()=>inp.click();
   inp.onchange=()=>{[...inp.files].forEach(fl=>{const img=/^image\//.test(fl.type),url=URL.createObjectURL(fl);
-    NC.recs.push({id:"u"+Date.now().toString(36)+Math.random().toString(36).slice(2,5),icon:"fDoc",title:fl.name,src:"Added by you · saved to chart",date:"Today",up:true,on:true,
+    NC.recs.push({id:"u"+Date.now().toString(36)+Math.random().toString(36).slice(2,5),icon:"fDoc",title:fl.name,src:"Added by you · saved to chart",date:`Today, ${fmtNow()}`,up:true,on:true,
       body:img?`<img src="${url}" alt="${esc(fl.name)}" style="display:block;max-width:100%;border-radius:8px">`:`<p class="nc-doc-note">Uploaded file · ${esc(fl.name)}</p>`})});
     inp.value="";renderRecs();summary3();const ul=root.querySelector("#ncRecs");ul&&ul.lastElementChild&&ul.lastElementChild.scrollIntoView({block:"nearest"})};
 }
 function renderRecs(){
   const ul=root&&root.querySelector("#ncRecs");if(!ul)return;
   ul.innerHTML=NC.recs.map((r,i)=>r.gap?`<li class="nct-rec nct-rec-gap"><span class="nct-rec-ic nct-rec-ic-gap">!</span><div class="nct-rec-t"><b>${esc(r.title)}</b><span>Not in Epic — ${esc(r.why)}. Upload it if you have it.</span></div><button type="button" class="ncp-btn nc-ghost nc-sm" data-ncup="${i}">${I.upload}Upload file</button></li>`:
-    `<li class="nct-rec${r.on?"":" nct-rec-off"}"><label class="nct-rec-cb"><input type="checkbox" data-ncrec="${i}"${r.on?" checked":""} aria-label="Include ${esc(r.title)}"></label><span class="nct-rec-ic">${I[r.icon]}</span><div class="nct-rec-t"><b>${esc(r.title)}</b><span>${esc(r.src)}${r.date?" · "+esc(r.date):""}</span></div><button type="button" class="nc-link" data-ncprev="${i}">Preview</button></li>`).join("");
-  ul.onchange=e=>{const cb=e.target.closest("[data-ncrec]");if(!cb)return;const r=NC.recs[+cb.dataset.ncrec];r.on=cb.checked;cb.closest(".nct-rec").classList.toggle("nct-rec-off",!r.on);summary3()};
+    `<li class="nct-rec${r.on?"":" nct-rec-off"}"><label class="nct-rec-cb"><input type="checkbox" data-ncrec="${i}"${r.on?" checked":""} aria-label="Include ${esc(r.title)}"></label><span class="nct-rec-ic">${I[r.icon]}</span><div class="nct-rec-t"><b>${esc(r.title)}</b>${r.up?`<span>Added by you${r.date?" · "+esc(r.date):""}</span>`:r.date?`<span>${esc(r.date)}</span>`:""}</div><button type="button" class="nc-link" data-ncprev="${i}">Preview</button></li>`).join("");
+  syncChips();
+  ul.onchange=e=>{const cb=e.target.closest("[data-ncrec]");if(!cb)return;const r=NC.recs[+cb.dataset.ncrec];r.on=cb.checked;cb.closest(".nct-rec").classList.toggle("nct-rec-off",!r.on);syncChips();summary3()};
   ul.onclick=async e=>{
     const pv=e.target.closest("[data-ncprev]");if(pv){openDoc(NC.recs[+pv.dataset.ncprev]);return}
     const up=e.target.closest("[data-ncup]");if(!up)return;
     const i=+up.dataset.ncup,r=NC.recs[i],li=up.closest(".nct-rec");
     li.innerHTML=`<span class="nct-rec-ic">${I.upload}</span><div class="nct-rec-t"><b>${esc(r.upTitle)}.pdf</b><span class="nct-up"><i></i></span></div>`;
     await sleep(T(1300));if(!root)return;
-    NC.recs[i]={id:r.id,icon:"fDoc",testing:true,title:r.upTitle,src:"Uploaded by you",date:"Today",up:true,on:true,body:`<p class="nc-doc-note">Uploaded file · ${esc(r.upTitle)}.pdf</p><p>Outside report attached by ${esc(ME)}. Original document is included as a PDF.</p>`};
+    NC.recs[i]={id:r.id,icon:"fDoc",testing:true,title:r.upTitle,src:"Uploaded by you",date:`Today, ${fmtNow()}`,up:true,on:true,body:`<p class="nc-doc-note">Uploaded file · ${esc(r.upTitle)}.pdf</p><p>Outside report attached by ${esc(ME)}. Original document is included as a PDF.</p>`};
     const tf=root.querySelector("#f-testing");if(tf&&!tf.value.trim()){tf.value=`See attached: ${r.upTitle}.`;tf.dispatchEvent(new Event("input",{bubbles:true}))}
     renderRecs();summary3();
   };
@@ -846,7 +878,8 @@ function pushRecord(){
   const f=buildFields(),radio=n=>root.querySelector(`input[name=${n}]:checked`)?.value||"";
   const srcOf=k=>{const v=val(k),o=String((k==="question"?NC.genQ:f[k])||"").trim();
     if(!v)return null;if(!o)return "Added by you";if(v!==o)return "Edited by you";
-    return k==="question"?"Your question":["summary","history"].includes(k)?"Drafted from the chart":"From the chart"};
+    if(k==="question")return "Your question";const rs=(SRC_OF[k]||[]).map(id=>(NC.recs||[]).find(r=>r.id===id&&!r.gap)).filter(Boolean).map(chipName);
+    return (AI_FIELDS.includes(k)?"Drafted from ":"From ")+(rs.length?rs.join(", "):"the chart")};
   const line=(k,label)=>({label,text:val(k),src:srcOf(k)});
   const request={sentAt:time,to:NC.clin,route:R.name,groups:[
     {title:"Consult question and urgency",items:[line("question","Consult question"),{label:"Urgency",text:urg,src:null},{label:"Needed by",text:val("need"),src:null}]},
