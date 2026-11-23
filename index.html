@@ -2754,7 +2754,10 @@ button.fl-item:focus-visible{outline:2px solid var(--focus);outline-offset:2px}
 :root[data-hyb] .groups.v-patient{--cols:272px minmax(180px,1fr) minmax(160px,1.15fr)!important}
 :root[data-hyb] .shell.open .groups.v-rows{--cols:minmax(180px,1fr) 252px minmax(170px,1fr) minmax(150px,1fr)!important}
 :root[data-hyb] .shell.open .groups.v-patient{--cols:252px minmax(0,1fr) minmax(0,1fr)!important}
-:root[data-hyb] .p1 .fg-urg{margin-left:8px;vertical-align:1px}
+:root[data-hyb] .p1 .fg-urg{margin-left:8px;vertical-align:baseline}
+/* urgency sits on the same baseline as the text next to it (name, label); the flag is centred on the text */
+.fg-urg{display:inline;gap:0}
+.fg-urg svg{display:inline-block;vertical-align:-2px;margin-right:4px}
 
 /* Hybrid mono toggle. data = Geist Mono for standalone system values (times, room, MRN, callback, sizes) wherever they appear, one step smaller than the Inter beside them. none = Inter everywhere, band included. */
 :root[data-hyb][data-hmono="data"] .ds-mono{font-family:"Geist Mono",ui-monospace,SFMono-Regular,Menlo,monospace!important;font-size:.92em;font-variant-numeric:tabular-nums;letter-spacing:-.2px;font-weight:500}
