@@ -229,7 +229,8 @@ const RULES=[
   [/ablation|\bwpw\b|ventricular tachy|\bvt\b|\bep study|electrophys/i,"ep","arr","Complex arrhythmia (EP)"],
   [/congenital|fallot|fontan|\bachd\b|tetralogy|\basd\b|\bvsd\b/i,"achd","arr","Adult congenital heart disease"],
   [/stat echo|urgent echo|echo (today|now|asap)/i,"echo","peri","Stat echocardiogram"],
-  [/a-?fib|atrial fib|flutter|\brvr\b|brady|heart block|tachyarr|\bsvt\b|palpitation|arrhythm/i,"gen","arr","Arrhythmia management"],
+  [/a-?fib|atrial fib|\baf\b|rapid ventricular|flutter|\brvr\b|brady|heart block|tachyarr|\bsvt\b|palpitation|arrhythm/i,"gen","arr","Arrhythmia management"],
+  [/pericard|tamponade|pleuritic|diffuse st[- ]elevation|effusion/i,"gen","peri","Pericarditis / effusion"],
   [/chest pain|troponin|\btrop\b|nstemi|\bacs\b|angina|\bcad\b|t-wave|st depression|\bcath\b|angiogra/i,"gen","acs","Chest pain / possible ACS"],
   [/heart failure|\bchf\b|hfref|hfpef|\bbnp\b|volume overload|diures/i,"gen","hf","Heart failure management"],
   [/pericard|effusion|tamponade/i,"gen","peri","Pericarditis / effusion"],
@@ -240,7 +241,9 @@ const RULES=[
   [/dyspnea|short(ness)? of breath|\bsob\b/i,"gen","dysp","Dyspnea evaluation"],
   [/heart|cardi|\becg\b|\bekg\b|telemetry/i,"gen",null,"Cardiology question"]
 ];
-function routeQuestion(q){for(const [re,r,t,reason] of RULES) if(re.test(q)) return {route:r,topic:t,reason};return null}
+function routeQuestion(q){for(const [re,r,t,reason] of RULES) if(re.test(q)) return {route:r,topic:t,reason};
+  /* this demo is cardiology-only: no specific match → General Cardiology, whose consult fellow triages to a subspecialty */
+  return (q||"").trim()?{route:"gen",topic:null,reason:"Cardiology question",fallback:true}:null}
 
 /* ---------- state ---------- */
 const NC={sess:0};
@@ -339,7 +342,7 @@ function paint(){
   root.querySelectorAll("[data-ncstep]").forEach(b=>b.onclick=()=>{if(!b.disabled)go(+b.dataset.ncstep)});
   [paint1,paint2,paint3][NC.step-1]();
 }
-const titleText=()=>NC.pt?`Consult for ${esc(PT[NC.pt].name)}`:"New consult";
+const titleText=()=>NC.pt?`${NC.step===3&&NC.route&&NC.route!=="adm"?"Cardiology consult":"Consult"} for ${esc(PT[NC.pt].name)}`:"New consult";
 function setTitle(){const h=root&&root.querySelector("#ncTitle");if(!h)return;h.classList.remove("nc-swap");void h.offsetWidth;h.innerHTML=titleText();h.classList.add("nc-swap")}
 /* bring what the user's action just revealed into view, scrolling only as much as needed and never
    under the sticky footer; earlier content stays above. top:N aligns the element N px below the top
@@ -473,7 +476,7 @@ function paintPick(){
 /* ask a question: centred composer → docks to the bottom → clarifying questions → a route */
 function paintAsk(){
   const body=root.querySelector("#modeBody");
-  body.innerHTML=`<div class="ncc${NC.chat.length?" nc-started":""}" id="ncc"><div class="ncc-hero"><h3>What do you need from the consultant?</h3><p>Describe the question in your own words. We’ll ask a couple of things, then suggest where it goes.</p></div>
+  body.innerHTML=`<div class="ncc${NC.chat.length?" nc-started":""}" id="ncc"><div class="ncc-hero"><h3>What do you need from the consultant?</h3><p>Describe the question in your own words. We’ll ask a couple of things, then suggest a cardiology service. This demo covers Cardiovascular Medicine only.</p></div>
     <div class="ncc-log" id="nccLog"></div>
     <div class="ncc-comp"><div class="ncc-box"><textarea id="nccIn" rows="2" placeholder="e.g. New AF with RVR, rates 130s despite metoprolol — rate vs rhythm control and anticoagulation?" aria-label="Consult question"></textarea>
       <div class="ncc-tools">${CHART[NC.pt]&&CHART[NC.pt].why?`<button type="button" class="ncc-ex" data-ncex="${esc(CHART[NC.pt].why)}. What do you recommend?">Try an example for ${esc(PT[NC.pt].name.split(" ")[0])}</button>`:""}<button type="button" class="ncc-send" id="nccSend" aria-label="Send question" disabled>${I.up}</button></div></div></div></div>`;
@@ -521,7 +524,7 @@ async function ask(q){
   const r=routeQuestion(NC.question),p=PT[NC.pt],c=CHART[NC.pt];
   if(!r){await aiSay([{text:"I couldn’t match that to a service yet. This demo covers **Cardiovascular Medicine** — describe the cardiac concern (symptom, ECG, troponin, rhythm, device…), or switch to **Pick a specialty**."}],[["Reading your question","doc"],["Matching to a service","route"]]);NC.question="";NC.busy=false;return}
   NC.reason=r.reason;if(r.topic)NC.topic=r.topic;
-  if(dead())return;const t1=await aiSay([{text:`Got it — I’d file this under **${r.reason}** for ${p.name}. Two quick checks before I suggest a service.`},{text:"Is the patient hemodynamically stable right now?"}],[["Reading your question","doc"],["Matching to a service","route"],["Checking the consult guidelines","scope"]]);
+  if(dead())return;const t1=await aiSay([{text:r.fallback?`This demo covers Cardiovascular Medicine, so I’d start with **General Cardiology** for ${p.name}; the consult fellow can route it to a subspecialty. Two quick checks first.`:`Got it — I’d file this under **${r.reason}** for ${p.name}. Two quick checks before I suggest a service.`},{text:"Is the patient hemodynamically stable right now?"}],[["Reading your question","doc"],["Matching to a service","route"],["Checking the consult guidelines","scope"]]);
   if(dead())return;const st=await choose(t1,[["stable","Stable"],["unstable","Unstable / worsening"]]);
   if(st==="unstable"){
     NC.unstable=true;NC.urg="Urgent";
