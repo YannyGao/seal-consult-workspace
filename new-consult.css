@@ -741,7 +741,7 @@ body.ncp-open{overflow:hidden}
    Living inside Taylor's v219 workboard: New consult keeps its own template design.
    Only compatibility fixes here — no restyle.
    ===================================================================== */
-/* v219's hybrid mode swaps the page font to Inter; New consult keeps Geist */
+/* v219's hybrid mode swaps the page font to Source Sans 3; New consult keeps Geist */
 .ncp,.nc-modal,.ncp-toast{--sans:"Geist",-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;--mono:"Geist Mono",ui-monospace,Menlo,monospace}
 .ncp-toast,.ncp-toast-v{font-family:"Geist",-apple-system,BlinkMacSystemFont,sans-serif}
 /* the workboard's floating prototype controls stay out of the way while New consult is open */
@@ -788,10 +788,10 @@ body.ncp-open{overflow:hidden}
 #secs:not([hidden]) .ncg:first-child{margin-top:0}
 .ncg + .ncg,.ncg + #genWrap:not(:empty),#genWrap + #secs:not([hidden]){margin-top:16px}
 
-/* ---------- match the workboard: Inter (Hybrid), tabular numbers instead of mono, no blur ---------- */
-:root[data-hyb] .ncp,:root[data-hyb] .nc-modal,:root[data-hyb] .ncp-toast{--sans:"Inter",-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;--mono:"Inter",-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif}
-:root[data-hyb] .ncp-toast,:root[data-hyb] .ncp-toast-v{font-family:"Inter",-apple-system,BlinkMacSystemFont,sans-serif}
-/* tabular numbers only where digits line up; on body text Inter's tabular hyphen looks spaced ("72 - year - old") */
+/* ---------- match the workboard: Source Sans 3 (Hybrid), tabular numbers instead of mono, no blur ---------- */
+:root[data-hyb] .ncp,:root[data-hyb] .nc-modal,:root[data-hyb] .ncp-toast{--sans:"Source Sans 3",-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;--mono:"Source Sans 3",-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif}
+:root[data-hyb] .ncp-toast,:root[data-hyb] .ncp-toast-v{font-family:"Source Sans 3",-apple-system,BlinkMacSystemFont,sans-serif}
+/* tabular numbers only where digits line up; on body text the tabular hyphen looks spaced ("72 - year - old") */
 .ncp :is(.ncd-meta,.nco-h span,.nct-to-pg,.nci-count,.nct-cl-n,.nc-ptid,.nc-to-pg,.ncq-cb,.ncp-toast-t),.nc-modal :is(.nc-to-pg){font-variant-numeric:tabular-nums}
 .nc-modal-bd{backdrop-filter:none!important;-webkit-backdrop-filter:none!important}
 /* your answers in the chat stand out from the silver panel */
